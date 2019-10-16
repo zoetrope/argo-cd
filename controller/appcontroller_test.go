@@ -5,10 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/util/argo"
-	"github.com/argoproj/argo-cd/util/db"
-
-	"github.com/argoproj/argo-cd/engine"
+	"github.com/argoproj/argo-cd/util/settings"
 
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
@@ -19,21 +16,19 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/common"
 	mockstatecache "github.com/argoproj/argo-cd/controller/cache/mocks"
+	"github.com/argoproj/argo-cd/engine"
+	"github.com/argoproj/argo-cd/engine/mocks"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
-	mockrepoclient "github.com/argoproj/argo-cd/reposerver/apiclient/mocks"
-	mockreposerver "github.com/argoproj/argo-cd/reposerver/mocks"
 	"github.com/argoproj/argo-cd/test"
 	utilcache "github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kube/kubetest"
-	"github.com/argoproj/argo-cd/util/settings"
 )
 
 type namespacedResource struct {
@@ -46,7 +41,7 @@ type fakeData struct {
 	manifestResponse    *engine.ManifestResponse
 	managedLiveObjs     map[kube.ResourceKey]*unstructured.Unstructured
 	namespacedResources map[kube.ResourceKey]namespacedResource
-	configMapData       map[string]string
+	settingsMockConfig  func(settingsMock *mocks.ReconciliationSettings)
 }
 
 func (fd *fakeData) Generate(ctx context.Context, repo *argoappv1.Repository, revision string, source *argoappv1.ApplicationSource, setting *engine.ManifestGenerationSettings) (*engine.ManifestResponse, error) {
@@ -54,46 +49,32 @@ func (fd *fakeData) Generate(ctx context.Context, repo *argoappv1.Repository, re
 }
 
 func newFakeController(data *fakeData) *ApplicationController {
-	var clust corev1.Secret
-	err := yaml.Unmarshal([]byte(fakeCluster), &clust)
-	if err != nil {
-		panic(err)
+	credsStoreMock := &mocks.CredentialsStore{}
+	credsStoreMock.On("GetCluster", mock.Anything, mock.Anything).Return(&argoappv1.Cluster{}, nil)
+	credsStoreMock.On("ListHelmRepositories", mock.Anything).Return(nil, nil)
+	credsStoreMock.On("GetRepository", mock.Anything, mock.Anything).Return(&argoappv1.Repository{}, nil)
+
+	settingsMock := &mocks.ReconciliationSettings{}
+	if data.settingsMockConfig != nil {
+		data.settingsMockConfig(settingsMock)
+	} else {
+		settingsMock.On("GetResourceOverrides").Return(map[string]argoappv1.ResourceOverride{}, nil)
+		settingsMock.On("GetAppInstanceLabelKey").Return("", nil)
+		settingsMock.On("GetConfigManagementPlugins").Return(nil, nil)
+		settingsMock.On("GetKustomizeBuildOptions").Return("", nil)
+		settingsMock.On("GetResourcesFilter").Return(&settings.ResourcesFilter{}, nil)
 	}
 
-	// Mock out call to GenerateManifest
-	mockRepoClient := mockrepoclient.RepoServerServiceClient{}
-	mockRepoClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(data.manifestResponse, nil)
-	mockRepoClientset := mockreposerver.Clientset{}
-	mockRepoClientset.On("NewRepoServerClient").Return(&fakeCloser{}, &mockRepoClient, nil)
+	auditLoggerMock := &mocks.AuditLogger{}
+	auditLoggerMock.On("LogAppEvent", mock.Anything, mock.Anything, mock.Anything)
 
-	secret := corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-secret",
-			Namespace: test.FakeArgoCDNamespace,
-		},
-		Data: map[string][]byte{
-			"admin.password":   []byte("test"),
-			"server.secretkey": []byte("test"),
-		},
-	}
-	cm := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-cm",
-			Namespace: test.FakeArgoCDNamespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
-		},
-		Data: data.configMapData,
-	}
-	kubeClient := fake.NewSimpleClientset(&clust, &cm, &secret)
-	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
 	kubectl := &kubetest.MockKubectlCmd{}
+
 	ctrl, err := NewApplicationController(
 		test.FakeArgoCDNamespace,
-		settingsMgr,
-		db.NewDB(test.FakeArgoCDNamespace, settingsMgr, kubeClient),
-		argo.NewAuditLogger(test.FakeArgoCDNamespace, kubeClient, "argocd-application-controller"),
+		settingsMock,
+		credsStoreMock,
+		auditLoggerMock,
 		appclientset.NewSimpleClientset(data.apps...),
 		data,
 		utilcache.NewCache(utilcache.NewInMemoryCache(1*time.Hour)),
@@ -134,28 +115,6 @@ func newFakeController(data *fakeData) *ApplicationController {
 	}).Return(nil)
 	return ctrl
 }
-
-type fakeCloser struct{}
-
-func (f *fakeCloser) Close() error { return nil }
-
-var fakeCluster = `
-apiVersion: v1
-data:
-  # {"bearerToken":"fake","tlsClientConfig":{"insecure":true},"awsAuthConfig":null}
-  config: eyJiZWFyZXJUb2tlbiI6ImZha2UiLCJ0bHNDbGllbnRDb25maWciOnsiaW5zZWN1cmUiOnRydWV9LCJhd3NBdXRoQ29uZmlnIjpudWxsfQ==
-  # minikube
-  name: aHR0cHM6Ly9sb2NhbGhvc3Q6NjQ0Mw==
-  # https://localhost:6443
-  server: aHR0cHM6Ly9sb2NhbGhvc3Q6NjQ0Mw==
-kind: Secret
-metadata:
-  labels:
-    argocd.argoproj.io/secret-type: cluster
-  name: some-secret
-  namespace: ` + test.FakeArgoCDNamespace + `
-type: Opaque
-`
 
 var fakeApp = `
 apiVersion: argoproj.io/v1alpha1

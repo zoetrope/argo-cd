@@ -2,9 +2,8 @@ package controller
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
-
-	"github.com/argoproj/argo-cd/engine"
 
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/apps/v1"
@@ -13,6 +12,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/engine"
+	"github.com/argoproj/argo-cd/engine/mocks"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util/kube"
@@ -346,8 +347,8 @@ func TestReturnUnknownComparisonStateOnSettingLoadError(t *testing.T) {
 
 	ctrl := newFakeController(&fakeData{
 		apps: []runtime.Object{app, proj},
-		configMapData: map[string]string{
-			"resource.customizations": "invalid setting",
+		settingsMockConfig: func(settingsMock *mocks.ReconciliationSettings) {
+			settingsMock.On("GetResourceOverrides").Return(nil, errors.New("fail"))
 		},
 	})
 
