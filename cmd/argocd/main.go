@@ -1,8 +1,8 @@
 package main
 
 import (
-	commands "github.com/argoproj/argo-cd/cmd/argocd/commands"
-	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/cmd/argocd/commands"
+	"github.com/argoproj/argo-cd/engine/util/errors"
 
 	// load the gcp plugin (required to authenticate against GKE clusters).
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"

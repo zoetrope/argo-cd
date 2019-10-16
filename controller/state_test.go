@@ -14,9 +14,9 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/engine"
 	"github.com/argoproj/argo-cd/engine/mocks"
+	"github.com/argoproj/argo-cd/engine/util/kube"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/test"
-	"github.com/argoproj/argo-cd/util/kube"
 )
 
 // TestCompareAppStateEmpty tests comparison when both git and live have no objects

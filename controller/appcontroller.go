@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine/util/misc"
+
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 	v1 "k8s.io/api/core/v1"
@@ -27,17 +29,16 @@ import (
 	statecache "github.com/argoproj/argo-cd/controller/cache"
 	"github.com/argoproj/argo-cd/controller/metrics"
 	"github.com/argoproj/argo-cd/engine"
-	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/engine/util/argo"
+	"github.com/argoproj/argo-cd/engine/util/diff"
+	"github.com/argoproj/argo-cd/engine/util/errors"
+	"github.com/argoproj/argo-cd/engine/util/kube"
 	"github.com/argoproj/argo-cd/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	appinformers "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-cd/pkg/client/informers/externalversions/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/argo"
-	"github.com/argoproj/argo-cd/util/diff"
-	"github.com/argoproj/argo-cd/util/kube"
 )
 
 const (
@@ -143,7 +144,7 @@ func NewApplicationController(
 	return &ctrl, nil
 }
 
-func (ctrl *ApplicationController) onKubectlRun(command string) (util.Closer, error) {
+func (ctrl *ApplicationController) onKubectlRun(command string) (misc.Closer, error) {
 	ctrl.metricsServer.IncKubectlExec(command)
 	if ctrl.kubectlSemaphore != nil {
 		if err := ctrl.kubectlSemaphore.Acquire(context.Background(), 1); err != nil {
@@ -151,7 +152,7 @@ func (ctrl *ApplicationController) onKubectlRun(command string) (util.Closer, er
 		}
 		ctrl.metricsServer.IncKubectlExecPending(command)
 	}
-	return util.NewCloser(func() error {
+	return misc.NewCloser(func() error {
 		if ctrl.kubectlSemaphore != nil {
 			ctrl.kubectlSemaphore.Release(1)
 			ctrl.metricsServer.DecKubectlExecPending(command)
@@ -460,7 +461,7 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 				Message: err.Error(),
 			})
 			message := fmt.Sprintf("Unable to delete application resources: %v", err.Error())
-			ctrl.auditLogger.LogAppEvent(app, engine.EventInfo{Reason: argo.EventReasonStatusRefreshed, Type: v1.EventTypeWarning}, message)
+			ctrl.auditLogger.LogAppEvent(app, engine.EventInfo{Reason: engine.EventReasonStatusRefreshed, Type: v1.EventTypeWarning}, message)
 		}
 	}
 	return
@@ -499,7 +500,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	}
 	config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, cluster.RESTConfig())
 
-	err = util.RunAllAsync(len(objs), func(i int) error {
+	err = misc.RunAllAsync(len(objs), func(i int) error {
 		obj := objs[i]
 		return ctrl.kubectl.DeleteResource(config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), false)
 	})
@@ -642,7 +643,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 }
 
 func (ctrl *ApplicationController) setOperationState(app *appv1.Application, state *appv1.OperationState) {
-	util.RetryUntilSucceed(func() error {
+	misc.RetryUntilSucceed(func() error {
 		if state.Phase == "" {
 			// expose any bugs where we neglect to set phase
 			panic("no phase was set")
@@ -680,7 +681,7 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 		}
 		log.Infof("updated '%s' operation (phase: %s)", app.Name, state.Phase)
 		if state.Phase.Completed() {
-			eventInfo := engine.EventInfo{Reason: argo.EventReasonOperationCompleted}
+			eventInfo := engine.EventInfo{Reason: engine.EventReasonOperationCompleted}
 			var messages []string
 			if state.Operation.Sync != nil && len(state.Operation.Sync.Resources) > 0 {
 				messages = []string{"Partial sync operation"}
@@ -920,11 +921,11 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 	logCtx := log.WithFields(log.Fields{"application": orig.Name})
 	if orig.Status.Sync.Status != newStatus.Sync.Status {
 		message := fmt.Sprintf("Updated sync status: %s -> %s", orig.Status.Sync.Status, newStatus.Sync.Status)
-		ctrl.auditLogger.LogAppEvent(orig, engine.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message)
+		ctrl.auditLogger.LogAppEvent(orig, engine.EventInfo{Reason: engine.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message)
 	}
 	if orig.Status.Health.Status != newStatus.Health.Status {
 		message := fmt.Sprintf("Updated health status: %s -> %s", orig.Status.Health.Status, newStatus.Health.Status)
-		ctrl.auditLogger.LogAppEvent(orig, engine.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message)
+		ctrl.auditLogger.LogAppEvent(orig, engine.EventInfo{Reason: engine.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message)
 	}
 	var newAnnotations map[string]string
 	if orig.GetAnnotations() != nil {
@@ -1029,7 +1030,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: err.Error()}
 	}
 	message := fmt.Sprintf("Initiated automated sync to '%s'", desiredCommitSHA)
-	ctrl.auditLogger.LogAppEvent(app, engine.EventInfo{Reason: argo.EventReasonOperationStarted, Type: v1.EventTypeNormal}, message)
+	ctrl.auditLogger.LogAppEvent(app, engine.EventInfo{Reason: engine.EventReasonOperationStarted, Type: v1.EventTypeNormal}, message)
 	logCtx.Info(message)
 	return nil
 }

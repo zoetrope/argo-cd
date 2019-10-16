@@ -9,6 +9,8 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/argoproj/argo-cd/engine/util/misc"
+
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -17,11 +19,10 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/engine/util/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	clusterpkg "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/clusterauth"
 )
 
@@ -92,7 +93,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				errors.CheckError(err)
 			}
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
-			defer util.Close(conn)
+			defer misc.Close(conn)
 			clst := NewCluster(args[0], conf, managerBearerToken, awsAuthConf)
 			if inCluster {
 				clst.Server = common.KubernetesInternalAPIServerAddr
@@ -188,7 +189,7 @@ func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				os.Exit(1)
 			}
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
-			defer util.Close(conn)
+			defer misc.Close(conn)
 			for _, clusterName := range args {
 				clst, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Server: clusterName})
 				errors.CheckError(err)
@@ -212,7 +213,7 @@ func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 				os.Exit(1)
 			}
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
-			defer util.Close(conn)
+			defer misc.Close(conn)
 
 			// clientset, err := kubernetes.NewForConfig(conf)
 			// errors.CheckError(err)
@@ -256,7 +257,7 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 		Short: "List configured clusters",
 		Run: func(c *cobra.Command, args []string) {
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
-			defer util.Close(conn)
+			defer misc.Close(conn)
 			clusters, err := clusterIf.List(context.Background(), &clusterpkg.ClusterQuery{})
 			errors.CheckError(err)
 			if output == "server" {
@@ -281,7 +282,7 @@ func NewClusterRotateAuthCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				os.Exit(1)
 			}
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
-			defer util.Close(conn)
+			defer misc.Close(conn)
 			clusterQuery := clusterpkg.ClusterQuery{
 				Server: args[0],
 			}

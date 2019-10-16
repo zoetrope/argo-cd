@@ -3,8 +3,8 @@ package cache
 import (
 	log "github.com/sirupsen/logrus"
 
+	"github.com/argoproj/argo-cd/engine/util/kube"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/kube"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

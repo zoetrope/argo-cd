@@ -3,6 +3,8 @@ package db
 import (
 	"context"
 
+	"github.com/argoproj/argo-cd/engine"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 
@@ -16,7 +18,7 @@ type ArgoDB interface {
 	// CreateCluster creates a cluster
 	CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, error)
 	// WatchClusters allow watching for cluster events
-	WatchClusters(ctx context.Context, callback func(*ClusterEvent)) error
+	WatchClusters(ctx context.Context, callback func(*engine.ClusterEvent)) error
 	// Get returns a cluster from a query
 	GetCluster(ctx context.Context, name string) (*appv1.Cluster, error)
 	// UpdateCluster updates a cluster

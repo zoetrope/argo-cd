@@ -11,9 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/engine/util/errors"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/lua"
 )
 
 type TestStructure struct {
@@ -49,9 +48,7 @@ func TestLuaHealthScript(t *testing.T) {
 		for i := range resourceTest.Tests {
 			test := resourceTest.Tests[i]
 			t.Run(test.InputPath, func(t *testing.T) {
-				vm := lua.VM{
-					UseOpenLibs: true,
-				}
+				vm := NewLuaVMExt(nil, true)
 				obj := getObj(filepath.Join(dir, test.InputPath))
 				script, err := vm.GetHealthScript(obj)
 				errors.CheckError(err)

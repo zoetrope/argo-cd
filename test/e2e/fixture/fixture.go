@@ -11,6 +11,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine/util/misc"
+
+	"github.com/argoproj/argo-cd/engine/resource"
+
 	"github.com/argoproj/pkg/errors"
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/ghodss/yaml"
@@ -22,14 +26,13 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/common"
-	. "github.com/argoproj/argo-cd/errors"
+	. "github.com/argoproj/argo-cd/engine/util/errors"
+	"github.com/argoproj/argo-cd/engine/util/rand"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	sessionpkg "github.com/argoproj/argo-cd/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/util"
 	grpcutil "github.com/argoproj/argo-cd/util/grpc"
-	"github.com/argoproj/argo-cd/util/rand"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -104,7 +107,7 @@ func init() {
 
 	closer, client, err := ArgoCDClientset.NewSessionClient()
 	CheckError(err)
-	defer util.Close(closer)
+	defer misc.Close(closer)
 
 	sessionResponse, err := client.Create(context.Background(), &sessionpkg.SessionCreateRequest{Username: "admin", Password: adminPassword})
 	CheckError(err)
@@ -232,7 +235,7 @@ func SetConfigManagementPlugins(plugin ...v1alpha1.ConfigManagementPlugin) {
 	})
 }
 
-func SetResourceFilter(filters settings.ResourcesFilter) {
+func SetResourceFilter(filters resource.ResourcesFilter) {
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		exclusions, err := yaml.Marshal(filters.ResourceExclusions)
 		if err != nil {
@@ -345,7 +348,7 @@ func EnsureCleanState(t *testing.T) {
 	SetRepoCredentials()
 	SetRepos()
 	SetHelmRepos()
-	SetResourceFilter(settings.ResourcesFilter{})
+	SetResourceFilter(resource.ResourcesFilter{})
 	SetProjectSpec("default", v1alpha1.AppProjectSpec{
 		OrphanedResources:        nil,
 		SourceRepos:              []string{"*"},

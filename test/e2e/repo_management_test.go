@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/argoproj/argo-cd/engine/util/misc"
+
 	"github.com/argoproj/argo-cd/test/e2e/fixture/repos"
 
 	"github.com/argoproj/argo-cd/test/e2e/fixture/app"
@@ -12,7 +14,6 @@ import (
 
 	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/util"
 )
 
 func TestAddRemovePublicRepo(t *testing.T) {
@@ -23,7 +24,7 @@ func TestAddRemovePublicRepo(t *testing.T) {
 
 		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()
 		assert.NoError(t, err)
-		defer util.Close(conn)
+		defer misc.Close(conn)
 
 		repo, err := repoClient.List(context.Background(), &repositorypkg.RepoQuery{})
 
@@ -66,7 +67,7 @@ func TestAddRemoveHelmRepo(t *testing.T) {
 
 		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()
 		assert.NoError(t, err)
-		defer util.Close(conn)
+		defer misc.Close(conn)
 
 		repo, err := repoClient.List(context.Background(), &repositorypkg.RepoQuery{})
 

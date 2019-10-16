@@ -9,6 +9,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine/util/misc"
+
+	"github.com/argoproj/argo-cd/resource_customizations"
+
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -26,22 +30,21 @@ import (
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/engine"
+	engineargo "github.com/argoproj/argo-cd/engine/util/argo"
+	"github.com/argoproj/argo-cd/engine/util/diff"
+	"github.com/argoproj/argo-cd/engine/util/git"
+	"github.com/argoproj/argo-cd/engine/util/kube"
+	"github.com/argoproj/argo-cd/engine/util/rbac"
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
 	argoutil "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/diff"
-	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/lua"
-	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -55,7 +58,7 @@ type Server struct {
 	kubectl       kube.Kubectl
 	db            db.ArgoDB
 	enf           *rbac.Enforcer
-	projectLock   *util.KeyLock
+	projectLock   *misc.KeyLock
 	auditLogger   *argo.AuditLogger
 	settingsMgr   *settings.SettingsManager
 	cache         *cache.Cache
@@ -71,7 +74,7 @@ func NewServer(
 	kubectl kube.Kubectl,
 	db db.ArgoDB,
 	enf *rbac.Enforcer,
-	projectLock *util.KeyLock,
+	projectLock *misc.KeyLock,
 	settingsMgr *settings.SettingsManager,
 ) application.ApplicationServiceServer {
 
@@ -159,7 +162,7 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 	}
 
 	if err == nil {
-		s.logEvent(out, ctx, argo.EventReasonResourceCreated, "created application")
+		s.logEvent(out, ctx, engine.EventReasonResourceCreated, "created application")
 	}
 	return out, err
 }
@@ -181,7 +184,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	if err != nil {
 		return nil, err
 	}
-	defer util.Close(conn)
+	defer misc.Close(conn)
 	revision := a.Spec.Source.TargetRevision
 	if q.Revision != "" {
 		revision = q.Revision
@@ -325,7 +328,7 @@ func (s *Server) Update(ctx context.Context, q *application.ApplicationUpdateReq
 	}
 	out, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(a)
 	if err == nil {
-		s.logEvent(a, ctx, argo.EventReasonResourceUpdated, "updated application")
+		s.logEvent(a, ctx, engine.EventReasonResourceUpdated, "updated application")
 	}
 	return out, err
 }
@@ -353,7 +356,7 @@ func (s *Server) UpdateSpec(ctx context.Context, q *application.ApplicationUpdat
 		a.Spec = *normalizedSpec
 		_, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(a)
 		if err == nil {
-			s.logEvent(a, ctx, argo.EventReasonResourceUpdated, "updated application spec")
+			s.logEvent(a, ctx, engine.EventReasonResourceUpdated, "updated application spec")
 			return normalizedSpec, nil
 		}
 		if !apierr.IsConflict(err) {
@@ -405,7 +408,7 @@ func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchReque
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("Patch type '%s' is not supported", q.PatchType))
 	}
 
-	s.logEvent(app, ctx, argo.EventReasonResourceUpdated, fmt.Sprintf("patched application %s/%s", app.Namespace, app.Name))
+	s.logEvent(app, ctx, engine.EventReasonResourceUpdated, fmt.Sprintf("patched application %s/%s", app.Namespace, app.Name))
 
 	err = json.Unmarshal(patchApp, &app)
 	if err != nil {
@@ -470,7 +473,7 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 		return nil, err
 	}
 
-	s.logEvent(a, ctx, argo.EventReasonResourceDeleted, "deleted application")
+	s.logEvent(a, ctx, engine.EventReasonResourceDeleted, "deleted application")
 	return &application.ApplicationResponse{}, nil
 }
 
@@ -593,18 +596,18 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 		return err
 	}
 	if len(conditions) > 0 {
-		return status.Errorf(codes.InvalidArgument, "application spec is invalid: %s", argo.FormatAppConditions(conditions))
+		return status.Errorf(codes.InvalidArgument, "application spec is invalid: %s", engineargo.FormatAppConditions(conditions))
 	}
 
-	conditions, err = argo.ValidatePermissions(ctx, &app.Spec, proj, s.db)
+	conditions, err = engineargo.ValidatePermissions(ctx, &app.Spec, proj, s.db)
 	if err != nil {
 		return err
 	}
 	if len(conditions) > 0 {
-		return status.Errorf(codes.InvalidArgument, "application spec is invalid: %s", argo.FormatAppConditions(conditions))
+		return status.Errorf(codes.InvalidArgument, "application spec is invalid: %s", engineargo.FormatAppConditions(conditions))
 	}
 
-	app.Spec = *argo.NormalizeApplicationSpec(&app.Spec)
+	app.Spec = *engineargo.NormalizeApplicationSpec(&app.Spec)
 	return nil
 }
 
@@ -630,7 +633,7 @@ func (s *Server) getCachedAppState(ctx context.Context, a *appv1.Application, ge
 			appv1.ApplicationConditionInvalidSpecError: true,
 		})
 		if len(conditions) > 0 {
-			return errors.New(argoutil.FormatAppConditions(conditions))
+			return errors.New(engineargo.FormatAppConditions(conditions))
 		}
 		_, err = s.Get(ctx, &application.ApplicationQuery{
 			Name:    pointer.StringPtr(a.Name),
@@ -738,7 +741,7 @@ func (s *Server) PatchResource(ctx context.Context, q *application.ApplicationRe
 	if err != nil {
 		return nil, err
 	}
-	s.logEvent(a, ctx, argo.EventReasonResourceUpdated, fmt.Sprintf("patched resource %s/%s '%s'", q.Group, q.Kind, q.ResourceName))
+	s.logEvent(a, ctx, engine.EventReasonResourceUpdated, fmt.Sprintf("patched resource %s/%s '%s'", q.Group, q.Kind, q.ResourceName))
 	return &application.ApplicationResourceResponse{
 		Manifest: string(data),
 	}, nil
@@ -770,7 +773,7 @@ func (s *Server) DeleteResource(ctx context.Context, q *application.ApplicationR
 	if err != nil {
 		return nil, err
 	}
-	s.logEvent(a, ctx, argo.EventReasonResourceDeleted, fmt.Sprintf("deleted resource %s/%s '%s'", q.Group, q.Kind, q.ResourceName))
+	s.logEvent(a, ctx, engine.EventReasonResourceDeleted, fmt.Sprintf("deleted resource %s/%s '%s'", q.Group, q.Kind, q.ResourceName))
 	return &application.ApplicationResponse{}, nil
 }
 
@@ -801,7 +804,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	if err != nil {
 		return nil, err
 	}
-	defer util.Close(conn)
+	defer misc.Close(conn)
 	return repoClient.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{Repo: repo, Revision: q.GetRevision()})
 }
 
@@ -861,7 +864,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		return err
 	}
 	logCtx := log.WithField("application", q.Name)
-	defer util.Close(stream)
+	defer misc.Close(stream)
 	done := make(chan bool)
 	gracefulExit := false
 	go func() {
@@ -948,7 +951,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		return nil, status.Errorf(codes.FailedPrecondition, "application is deleting")
 	}
 	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil {
-		if syncReq.Revision != "" && syncReq.Revision != util.FirstNonEmpty(a.Spec.Source.TargetRevision, "HEAD") {
+		if syncReq.Revision != "" && syncReq.Revision != misc.FirstNonEmpty(a.Spec.Source.TargetRevision, "HEAD") {
 			return nil, status.Errorf(codes.FailedPrecondition, "Cannot sync to %s: auto-sync currently set to %s", syncReq.Revision, a.Spec.Source.TargetRevision)
 		}
 	}
@@ -971,13 +974,13 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 			Manifests:    syncReq.Manifests,
 		},
 	}
-	a, err = argo.SetAppOperation(appIf, *syncReq.Name, &op)
+	a, err = engineargo.SetAppOperation(appIf, *syncReq.Name, &op)
 	if err == nil {
 		partial := ""
 		if len(syncReq.Resources) > 0 {
 			partial = "partial "
 		}
-		s.logEvent(a, ctx, argo.EventReasonOperationStarted, fmt.Sprintf("initiated %ssync to %s", partial, displayRevision))
+		s.logEvent(a, ctx, engine.EventReasonOperationStarted, fmt.Sprintf("initiated %ssync to %s", partial, displayRevision))
 	}
 	return a, err
 }
@@ -1024,9 +1027,9 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 			Source:       &deploymentInfo.Source,
 		},
 	}
-	a, err = argo.SetAppOperation(appIf, *rollbackReq.Name, &op)
+	a, err = engineargo.SetAppOperation(appIf, *rollbackReq.Name, &op)
 	if err == nil {
-		s.logEvent(a, ctx, argo.EventReasonOperationStarted, fmt.Sprintf("initiated rollback to %d", rollbackReq.ID))
+		s.logEvent(a, ctx, engine.EventReasonOperationStarted, fmt.Sprintf("initiated rollback to %d", rollbackReq.ID))
 	}
 	return a, err
 }
@@ -1085,7 +1088,7 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 		if err != nil {
 			return nil, err
 		}
-		s.logEvent(a, ctx, argo.EventReasonResourceUpdated, "terminated running operation")
+		s.logEvent(a, ctx, engine.EventReasonResourceUpdated, "terminated running operation")
 	}
 	return nil, status.Errorf(codes.Internal, "Failed to terminate app. Too many conflicts")
 }
@@ -1123,10 +1126,7 @@ func (s *Server) ListResourceActions(ctx context.Context, q *application.Applica
 }
 
 func (s *Server) getAvailableActions(resourceOverrides map[string]appv1.ResourceOverride, obj *unstructured.Unstructured) ([]appv1.ResourceAction, error) {
-	luaVM := lua.VM{
-		ResourceOverrides: resourceOverrides,
-	}
-
+	luaVM := resource_customizations.NewLuaVM(resourceOverrides)
 	discoveryScript, err := luaVM.GetResourceActionDiscovery(obj)
 	if err != nil {
 		return nil, err
@@ -1166,9 +1166,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		return nil, err
 	}
 
-	luaVM := lua.VM{
-		ResourceOverrides: resourceOverrides,
-	}
+	luaVM := resource_customizations.NewLuaVM(resourceOverrides)
 	action, err := luaVM.GetResourceAction(liveObj, q.Action)
 	if err != nil {
 		return nil, err

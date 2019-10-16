@@ -17,6 +17,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/engine/util/rbac"
 	"github.com/argoproj/argo-cd/pkg/apiclient"
 	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -24,7 +25,6 @@ import (
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util/assets"
-	"github.com/argoproj/argo-cd/util/rbac"
 )
 
 func fakeServer() *ArgoCDServer {

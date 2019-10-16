@@ -15,6 +15,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine/util/misc"
+
 	"gopkg.in/yaml.v2"
 	v1 "k8s.io/api/core/v1"
 
@@ -43,7 +45,11 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/engine/util/errors"
+	"github.com/argoproj/argo-cd/engine/util/healthz"
+	jsonutil "github.com/argoproj/argo-cd/engine/util/json"
+	"github.com/argoproj/argo-cd/engine/util/kube"
+	"github.com/argoproj/argo-cd/engine/util/rbac"
 	"github.com/argoproj/argo-cd/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/pkg/apiclient/account"
 	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
@@ -69,20 +75,15 @@ import (
 	"github.com/argoproj/argo-cd/server/session"
 	"github.com/argoproj/argo-cd/server/settings"
 	"github.com/argoproj/argo-cd/server/version"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/assets"
 	argocache "github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/dex"
 	dexutil "github.com/argoproj/argo-cd/util/dex"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
-	"github.com/argoproj/argo-cd/util/healthz"
 	httputil "github.com/argoproj/argo-cd/util/http"
-	jsonutil "github.com/argoproj/argo-cd/util/json"
 	"github.com/argoproj/argo-cd/util/jwt/zjwt"
-	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/oidc"
-	"github.com/argoproj/argo-cd/util/rbac"
 	util_session "github.com/argoproj/argo-cd/util/session"
 	settings_util "github.com/argoproj/argo-cd/util/settings"
 	"github.com/argoproj/argo-cd/util/swagger"
@@ -458,7 +459,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	clusterService := cluster.NewServer(db, a.enf, a.Cache, kubectl)
 	repoService := repository.NewServer(a.RepoClientset, db, a.enf, a.Cache, a.settingsMgr)
 	sessionService := session.NewServer(a.sessionMgr, a)
-	projectLock := util.NewKeyLock()
+	projectLock := misc.NewKeyLock()
 	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.RepoClientset, a.Cache, kubectl, db, a.enf, projectLock, a.settingsMgr)
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr)
 	settingsService := settings.NewServer(a.settingsMgr)
@@ -646,7 +647,7 @@ func indexFilePath(srcPath string, baseHRef string) (string, error) {
 		}
 		return "", err
 	}
-	defer util.Close(f)
+	defer misc.Close(f)
 
 	data, err := ioutil.ReadFile(srcPath)
 	if err != nil {

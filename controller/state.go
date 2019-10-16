@@ -6,6 +6,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine/util/misc"
+
+	argo2 "github.com/argoproj/argo-cd/engine/util/argo"
+
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -17,17 +21,15 @@ import (
 	statecache "github.com/argoproj/argo-cd/controller/cache"
 	"github.com/argoproj/argo-cd/controller/metrics"
 	"github.com/argoproj/argo-cd/engine"
+	hookutil "github.com/argoproj/argo-cd/engine/hook"
+	"github.com/argoproj/argo-cd/engine/resource"
+	"github.com/argoproj/argo-cd/engine/resource/ignore"
+	"github.com/argoproj/argo-cd/engine/util/diff"
+	"github.com/argoproj/argo-cd/engine/util/health"
+	kubeutil "github.com/argoproj/argo-cd/engine/util/kube"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/argo"
-	"github.com/argoproj/argo-cd/util/diff"
-	"github.com/argoproj/argo-cd/util/health"
-	hookutil "github.com/argoproj/argo-cd/util/hook"
-	kubeutil "github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/resource"
-	"github.com/argoproj/argo-cd/util/resource/ignore"
 )
 
 type managedResource struct {
@@ -244,7 +246,7 @@ func (m *appStateManager) getComparisonSettings(app *appv1.Application) (string,
 	if err != nil {
 		return "", nil, nil, err
 	}
-	diffNormalizer, err := argo.NewDiffNormalizer(app.Spec.IgnoreDifferences, resourceOverrides)
+	diffNormalizer, err := argo2.NewDiffNormalizer(app.Spec.IgnoreDifferences, resourceOverrides)
 	if err != nil {
 		return "", nil, nil, err
 	}
@@ -345,7 +347,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	managedLiveObj := make([]*unstructured.Unstructured, len(targetObjs))
 	for i, obj := range targetObjs {
 		gvk := obj.GroupVersionKind()
-		ns := util.FirstNonEmpty(obj.GetNamespace(), app.Spec.Destination.Namespace)
+		ns := misc.FirstNonEmpty(obj.GetNamespace(), app.Spec.Destination.Namespace)
 		if namespaced, err := m.liveStateCache.IsNamespaced(app.Spec.Destination.Server, obj.GroupVersionKind().GroupKind()); err == nil && !namespaced {
 			ns = ""
 		}

@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine/util/misc"
+
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-cd/controller/metrics"
@@ -20,10 +22,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 
+	"github.com/argoproj/argo-cd/engine/util/health"
+	"github.com/argoproj/argo-cd/engine/util/kube"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/health"
-	"github.com/argoproj/argo-cd/util/kube"
 )
 
 const (
@@ -223,7 +224,7 @@ func runSynced(lock *sync.Mutex, action func() error) error {
 }
 
 func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo, info *apiMeta) {
-	util.RetryUntilSucceed(func() (err error) {
+	misc.RetryUntilSucceed(func() (err error) {
 		defer func() {
 			if r := recover(); r != nil {
 				err = fmt.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
@@ -315,7 +316,7 @@ func (c *clusterInfo) sync() (err error) {
 		return err
 	}
 	lock := sync.Mutex{}
-	err = util.RunAllAsync(len(apis), func(i int) error {
+	err = misc.RunAllAsync(len(apis), func(i int) error {
 		api := apis[i]
 		list, err := api.Interface.List(metav1.ListOptions{})
 		if err != nil {
@@ -421,7 +422,7 @@ func (c *clusterInfo) getManagedLiveObjs(a *appv1.Application, targetObjs []*uns
 	// iterate target objects and identify ones that already exist in the cluster,\
 	// but are simply missing our label
 	lock := &sync.Mutex{}
-	err := util.RunAllAsync(len(targetObjs), func(i int) error {
+	err := misc.RunAllAsync(len(targetObjs), func(i int) error {
 		targetObj := targetObjs[i]
 		key := GetTargetObjKey(a, targetObj, c.isNamespaced(targetObj.GroupVersionKind().GroupKind()))
 		lock.Lock()

@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/argoproj/argo-cd/engine/util/misc"
+
 	"github.com/TomOnTime/utfutil"
 	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/ghodss/yaml"
@@ -24,18 +26,17 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/engine/util/config"
+	"github.com/argoproj/argo-cd/engine/util/git"
+	"github.com/argoproj/argo-cd/engine/util/helm"
+	"github.com/argoproj/argo-cd/engine/util/kube"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/reposerver/metrics"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/app/discovery"
 	argopath "github.com/argoproj/argo-cd/util/app/path"
 	"github.com/argoproj/argo-cd/util/cache"
-	"github.com/argoproj/argo-cd/util/config"
-	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/ksonnet"
-	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kustomize"
 	"github.com/argoproj/argo-cd/util/text"
 )
@@ -47,7 +48,7 @@ const (
 
 // Service implements ManifestService interface
 type Service struct {
-	repoLock                  *util.KeyLock
+	repoLock                  *misc.KeyLock
 	cache                     *cache.Cache
 	parallelismLimitSemaphore *semaphore.Weighted
 	metricsServer             *metrics.MetricsServer
@@ -61,7 +62,7 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, parall
 	if parallelismLimit > 0 {
 		parallelismLimitSemaphore = semaphore.NewWeighted(parallelismLimit)
 	}
-	repoLock := util.NewKeyLock()
+	repoLock := misc.NewKeyLock()
 	return &Service{
 		parallelismLimitSemaphore: parallelismLimitSemaphore,
 		repoLock:                  repoLock,
@@ -151,7 +152,7 @@ func (s *Service) runRepoOperation(
 		if err != nil {
 			return err
 		}
-		defer util.Close(closer)
+		defer misc.Close(closer)
 		return operation(chartPath, revision)
 	}
 	s.repoLock.Lock(gitClient.Root())

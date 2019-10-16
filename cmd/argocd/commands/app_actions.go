@@ -10,13 +10,14 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/argoproj/argo-cd/engine/util/misc"
+
 	"github.com/ghodss/yaml"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/engine/util/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/util"
 )
 
 type DisplayedAction struct {
@@ -60,7 +61,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 		}
 		appName := args[0]
 		conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
-		defer util.Close(conn)
+		defer misc.Close(conn)
 		ctx := context.Background()
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 		errors.CheckError(err)
@@ -142,7 +143,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 		actionName := args[1]
 
 		conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
-		defer util.Close(conn)
+		defer misc.Close(conn)
 		ctx := context.Background()
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 		errors.CheckError(err)

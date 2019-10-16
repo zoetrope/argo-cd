@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/argoproj/argo-cd/engine"
+
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -99,14 +101,8 @@ func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 	return secretToCluster(clusterSecret), db.settingsMgr.ResyncInformers()
 }
 
-// ClusterEvent contains information about cluster event
-type ClusterEvent struct {
-	Type    watch.EventType
-	Cluster *appv1.Cluster
-}
-
 // WatchClusters allow watching for cluster events
-func (db *db) WatchClusters(ctx context.Context, callback func(*ClusterEvent)) error {
+func (db *db) WatchClusters(ctx context.Context, callback func(*engine.ClusterEvent)) error {
 	listOpts := metav1.ListOptions{}
 	labelSelector := labels.NewSelector()
 	req, err := labels.NewRequirement(common.LabelKeySecretType, selection.Equals, []string{common.LabelValueSecretTypeCluster})
@@ -129,7 +125,7 @@ func (db *db) WatchClusters(ctx context.Context, callback func(*ClusterEvent)) e
 	done := make(chan bool)
 
 	// trigger callback with event for local cluster since it always considered added
-	callback(&ClusterEvent{Type: watch.Added, Cluster: localCls})
+	callback(&engine.ClusterEvent{Type: watch.Added, Cluster: localCls})
 
 	go func() {
 		for next := range w.ResultChan() {
@@ -153,7 +149,7 @@ func (db *db) WatchClusters(ctx context.Context, callback func(*ClusterEvent)) e
 				}
 			}
 
-			callback(&ClusterEvent{
+			callback(&engine.ClusterEvent{
 				Type:    next.Type,
 				Cluster: cluster,
 			})

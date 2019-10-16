@@ -14,6 +14,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine/util/misc"
+
+	"github.com/argoproj/argo-cd/engine/resource"
+
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
@@ -29,7 +33,6 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/settings/oidc"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/password"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
 )
@@ -249,14 +252,14 @@ func (mgr *SettingsManager) GetConfigMapByName(configMapName string) (*apiv1.Con
 	return configMap, err
 }
 
-func (mgr *SettingsManager) GetResourcesFilter() (*ResourcesFilter, error) {
+func (mgr *SettingsManager) GetResourcesFilter() (*resource.ResourcesFilter, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
 		return nil, err
 	}
-	rf := &ResourcesFilter{}
+	rf := &resource.ResourcesFilter{}
 	if value, ok := argoCDCM.Data[resourceInclusionsKey]; ok {
-		includedResources := make([]FilteredResource, 0)
+		includedResources := make([]resource.FilteredResource, 0)
 		err := yaml.Unmarshal([]byte(value), &includedResources)
 		if err != nil {
 			return nil, err
@@ -265,7 +268,7 @@ func (mgr *SettingsManager) GetResourcesFilter() (*ResourcesFilter, error) {
 	}
 
 	if value, ok := argoCDCM.Data[resourceExclusionsKey]; ok {
-		excludedResources := make([]FilteredResource, 0)
+		excludedResources := make([]resource.FilteredResource, 0)
 		err := yaml.Unmarshal([]byte(value), &excludedResources)
 		if err != nil {
 			return nil, err
@@ -921,7 +924,7 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 	}
 	if cdSettings.ServerSignature == nil {
 		// set JWT signature
-		signature, err := util.MakeSignature(32)
+		signature, err := misc.MakeSignature(32)
 		if err != nil {
 			return nil, err
 		}

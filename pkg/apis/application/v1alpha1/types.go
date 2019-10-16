@@ -27,10 +27,10 @@ import (
 	"k8s.io/client-go/tools/clientcmd/api"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/util/cert"
-	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/helm"
-	"github.com/argoproj/argo-cd/util/rbac"
+	"github.com/argoproj/argo-cd/engine/util/cert"
+	"github.com/argoproj/argo-cd/engine/util/git"
+	"github.com/argoproj/argo-cd/engine/util/helm"
+	"github.com/argoproj/argo-cd/engine/util/rbac"
 )
 
 // Application is a definition of Application resource.

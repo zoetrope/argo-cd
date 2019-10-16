@@ -3,15 +3,16 @@ package cache
 import (
 	"fmt"
 
+	"github.com/argoproj/argo-cd/engine/util/misc"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	k8snode "k8s.io/kubernetes/pkg/util/node"
 
+	"github.com/argoproj/argo-cd/engine/resource"
+	"github.com/argoproj/argo-cd/engine/util/kube"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/resource"
 )
 
 func populateNodeInfo(un *unstructured.Unstructured, node *node) {
@@ -88,7 +89,7 @@ func populateIngressInfo(un *unstructured.Unstructured, node *node) {
 			host := rule["host"]
 			if host == nil || host == "" {
 				for i := range ingress {
-					host = util.FirstNonEmpty(ingress[i].Hostname, ingress[i].IP)
+					host = misc.FirstNonEmpty(ingress[i].Hostname, ingress[i].IP)
 					if host != "" {
 						break
 					}

@@ -3,7 +3,7 @@ package controller
 import (
 	"fmt"
 
-	"github.com/argoproj/argo-cd/util/health"
+	"github.com/argoproj/argo-cd/engine/util/health"
 
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"

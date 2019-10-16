@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/engine/resource"
 
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
@@ -21,14 +21,15 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	mockstatecache "github.com/argoproj/argo-cd/controller/cache/mocks"
+
 	"github.com/argoproj/argo-cd/engine"
 	"github.com/argoproj/argo-cd/engine/mocks"
+	"github.com/argoproj/argo-cd/engine/util/kube"
+	"github.com/argoproj/argo-cd/engine/util/kube/kubetest"
+
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/test"
-	utilcache "github.com/argoproj/argo-cd/util/cache"
-	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/kube/kubetest"
 )
 
 type namespacedResource struct {
@@ -62,14 +63,17 @@ func newFakeController(data *fakeData) *ApplicationController {
 		settingsMock.On("GetAppInstanceLabelKey").Return("", nil)
 		settingsMock.On("GetConfigManagementPlugins").Return(nil, nil)
 		settingsMock.On("GetKustomizeBuildOptions").Return("", nil)
-		settingsMock.On("GetResourcesFilter").Return(&settings.ResourcesFilter{}, nil)
+		settingsMock.On("GetResourcesFilter").Return(&resource.ResourcesFilter{}, nil)
 	}
 
 	auditLoggerMock := &mocks.AuditLogger{}
 	auditLoggerMock.On("LogAppEvent", mock.Anything, mock.Anything, mock.Anything)
 
-	kubectl := &kubetest.MockKubectlCmd{}
+	appStateCacheMock := &mocks.AppStateCache{}
+	appStateCacheMock.On("SetAppManagedResources", mock.Anything, mock.Anything).Return(nil)
+	appStateCacheMock.On("SetAppResourcesTree", mock.Anything, mock.Anything).Return(nil)
 
+	kubectl := &kubetest.MockKubectlCmd{}
 	ctrl, err := NewApplicationController(
 		test.FakeArgoCDNamespace,
 		settingsMock,
@@ -77,7 +81,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 		auditLoggerMock,
 		appclientset.NewSimpleClientset(data.apps...),
 		data,
-		utilcache.NewCache(utilcache.NewInMemoryCache(1*time.Hour)),
+		appStateCacheMock,
 		kubectl,
 		time.Minute,
 		time.Minute,

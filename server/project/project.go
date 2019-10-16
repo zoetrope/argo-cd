@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/argoproj/argo-cd/engine/util/misc"
+
 	"github.com/dgrijalva/jwt-go"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -17,14 +19,13 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/engine"
+	"github.com/argoproj/argo-cd/engine/util/rbac"
 	"github.com/argoproj/argo-cd/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
 	jwtutil "github.com/argoproj/argo-cd/util/jwt"
-	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
 )
 
@@ -40,12 +41,12 @@ type Server struct {
 	appclientset  appclientset.Interface
 	kubeclientset kubernetes.Interface
 	auditLogger   *argo.AuditLogger
-	projectLock   *util.KeyLock
+	projectLock   *misc.KeyLock
 	sessionMgr    *session.SessionManager
 }
 
 // NewServer returns a new instance of the Project service
-func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock *util.KeyLock, sessionMgr *session.SessionManager) *Server {
+func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock *misc.KeyLock, sessionMgr *session.SessionManager) *Server {
 	auditLogger := argo.NewAuditLogger(ns, kubeclientset, "argocd-server")
 	return &Server{enf: enf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger, sessionMgr: sessionMgr}
 }
@@ -94,7 +95,7 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 	if err != nil {
 		return nil, err
 	}
-	s.logEvent(prj, ctx, argo.EventReasonResourceCreated, "created token")
+	s.logEvent(prj, ctx, engine.EventReasonResourceCreated, "created token")
 	return &project.ProjectTokenResponse{Token: jwtToken}, nil
 
 }
@@ -132,7 +133,7 @@ func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 	if err != nil {
 		return nil, err
 	}
-	s.logEvent(prj, ctx, argo.EventReasonResourceDeleted, "deleted token")
+	s.logEvent(prj, ctx, engine.EventReasonResourceDeleted, "deleted token")
 	return &project.EmptyResponse{}, nil
 }
 
@@ -166,7 +167,7 @@ func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*
 		}
 	}
 	if err == nil {
-		s.logEvent(res, ctx, argo.EventReasonResourceCreated, "created project")
+		s.logEvent(res, ctx, engine.EventReasonResourceCreated, "created project")
 	}
 	return res, err
 }
@@ -279,7 +280,7 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 
 	res, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(q.Project)
 	if err == nil {
-		s.logEvent(res, ctx, argo.EventReasonResourceUpdated, "updated project")
+		s.logEvent(res, ctx, engine.EventReasonResourceUpdated, "updated project")
 	}
 	return res, err
 }
@@ -311,7 +312,7 @@ func (s *Server) Delete(ctx context.Context, q *project.ProjectQuery) (*project.
 	}
 	err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Delete(q.Name, &metav1.DeleteOptions{})
 	if err == nil {
-		s.logEvent(p, ctx, argo.EventReasonResourceDeleted, "deleted project")
+		s.logEvent(p, ctx, engine.EventReasonResourceDeleted, "deleted project")
 	}
 	return &project.EmptyResponse{}, err
 }

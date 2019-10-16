@@ -24,14 +24,14 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller/metrics"
+	"github.com/argoproj/argo-cd/engine/hook"
+	"github.com/argoproj/argo-cd/engine/resource"
+	"github.com/argoproj/argo-cd/engine/util/argo"
+	"github.com/argoproj/argo-cd/engine/util/health"
+	"github.com/argoproj/argo-cd/engine/util/kube"
+	"github.com/argoproj/argo-cd/engine/util/rand"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	listersv1alpha1 "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/argo"
-	"github.com/argoproj/argo-cd/util/health"
-	"github.com/argoproj/argo-cd/util/hook"
-	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/rand"
-	"github.com/argoproj/argo-cd/util/resource"
 )
 
 const (

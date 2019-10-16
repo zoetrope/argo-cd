@@ -19,11 +19,12 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/engine"
+	"github.com/argoproj/argo-cd/engine/util/kube"
+	"github.com/argoproj/argo-cd/engine/util/kube/kubetest"
+
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/test"
-	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/kube/kubetest"
 )
 
 func newTestSyncCtx(resources ...*v1.APIResourceList) *syncContext {

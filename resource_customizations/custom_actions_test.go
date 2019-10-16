@@ -14,9 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
+	"github.com/argoproj/argo-cd/engine/util/diff"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/diff"
-	"github.com/argoproj/argo-cd/util/lua"
 )
 
 type testNormalizer struct{}
@@ -59,9 +58,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 			test := resourceTest.DiscoveryTests[i]
 			testName := fmt.Sprintf("discovery/%s", test.InputPath)
 			t.Run(testName, func(t *testing.T) {
-				vm := lua.VM{
-					UseOpenLibs: true,
-				}
+				vm := NewLuaVMExt(nil, true)
 				obj := getObj(filepath.Join(dir, test.InputPath))
 				discoveryLua, err := vm.GetResourceActionDiscovery(obj)
 				assert.NoError(t, err)
@@ -74,12 +71,11 @@ func TestLuaResourceActionsScript(t *testing.T) {
 			test := resourceTest.ActionTests[i]
 			testName := fmt.Sprintf("actions/%s/%s", test.Action, test.InputPath)
 			t.Run(testName, func(t *testing.T) {
-				vm := lua.VM{
-					// Uncomment the following line if you need to use lua libraries debugging
-					// purposes. Otherwise, leave this false to ensure tests reflect the same
-					// privileges that API server has.
-					//UseOpenLibs: true,
-				}
+				// Uncomment the following line if you need to use lua libraries debugging
+				// purposes. Otherwise, leave this false to ensure tests reflect the same
+				// privileges that API server has.
+				// vm := NewLuaVM(nil)
+				vm := NewLuaVMExt(nil, true)
 				obj := getObj(filepath.Join(dir, test.InputPath))
 				action, err := vm.GetResourceAction(obj, test.Action)
 				assert.NoError(t, err)

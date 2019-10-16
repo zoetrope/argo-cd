@@ -9,22 +9,23 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine/util/misc"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	v1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	"github.com/argoproj/argo-cd/engine/util/git"
+	gitmocks "github.com/argoproj/argo-cd/engine/util/git/mocks"
+	"github.com/argoproj/argo-cd/engine/util/helm"
+	helmmocks "github.com/argoproj/argo-cd/engine/util/helm/mocks"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/reposerver/metrics"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cache"
 	argocache "github.com/argoproj/argo-cd/util/cache"
-	"github.com/argoproj/argo-cd/util/git"
-	gitmocks "github.com/argoproj/argo-cd/util/git/mocks"
-	"github.com/argoproj/argo-cd/util/helm"
-	helmmocks "github.com/argoproj/argo-cd/util/helm/mocks"
 )
 
 func newServiceWithMocks(root string) (*Service, *gitmocks.Client, *helmmocks.Client) {
@@ -44,7 +45,7 @@ func newServiceWithMocks(root string) (*Service, *gitmocks.Client, *helmmocks.Cl
 
 	helmClient.On("ExtractChart", mock.Anything, mock.Anything).Return(func(chart string, version string) string {
 		return path.Join(root, chart)
-	}, util.NewCloser(func() error {
+	}, misc.NewCloser(func() error {
 		return nil
 	}), nil)
 
@@ -150,7 +151,7 @@ func TestGenerateHelmChartWithDependencies(t *testing.T) {
 	q := apiclient.ManifestRequest{
 		Repo: &argoappv1.Repository{},
 		ApplicationSource: &argoappv1.ApplicationSource{
-			Path: "./util/helm/testdata/wordpress",
+			Path: "./engine/util/helm/testdata/wordpress",
 		},
 	}
 	res1, err := service.GenerateManifest(context.Background(), &q)
@@ -165,7 +166,7 @@ func TestGenerateHelmWithValues(t *testing.T) {
 		Repo:          &argoappv1.Repository{},
 		AppLabelValue: "test",
 		ApplicationSource: &argoappv1.ApplicationSource{
-			Path: "./util/helm/testdata/redis",
+			Path: "./engine/util/helm/testdata/redis",
 			Helm: &argoappv1.ApplicationSourceHelm{
 				ValueFiles: []string{"values-production.yaml"},
 				Values:     `cluster: {slaveCount: 2}`,
@@ -301,7 +302,7 @@ func TestGetAppDetailsHelm(t *testing.T) {
 	res, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
 		Repo: &argoappv1.Repository{},
 		Source: &argoappv1.ApplicationSource{
-			Path: "./util/helm/testdata/wordpress",
+			Path: "./engine/util/helm/testdata/wordpress",
 		},
 	})
 

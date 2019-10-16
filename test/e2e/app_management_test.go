@@ -11,6 +11,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine/util/misc"
+
+	"github.com/argoproj/argo-cd/engine/resource"
+
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,17 +23,15 @@ import (
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/common"
-	. "github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/engine/util/diff"
+	. "github.com/argoproj/argo-cd/engine/util/errors"
+	"github.com/argoproj/argo-cd/engine/util/kube"
 	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
 	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
-	"github.com/argoproj/argo-cd/util"
 	. "github.com/argoproj/argo-cd/util/argo"
-	"github.com/argoproj/argo-cd/util/diff"
-	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/settings"
 )
 
 const (
@@ -252,7 +254,7 @@ func TestManipulateApplicationResources(t *testing.T) {
 
 			closer, client, err := ArgoCDClientset.NewApplicationClient()
 			assert.NoError(t, err)
-			defer util.Close(closer)
+			defer misc.Close(closer)
 
 			_, err = client.DeleteResource(context.Background(), &applicationpkg.ApplicationResourceDeleteRequest{
 				Name:         &app.Name,
@@ -294,7 +296,7 @@ func assetSecretDataHidden(t *testing.T, manifest string) {
 func TestAppWithSecrets(t *testing.T) {
 	closer, client, err := ArgoCDClientset.NewApplicationClient()
 	assert.NoError(t, err)
-	defer util.Close(closer)
+	defer misc.Close(closer)
 
 	Given(t).
 		Path("secrets").
@@ -447,7 +449,7 @@ func TestKsonnetApp(t *testing.T) {
 		And(func(app *Application) {
 			closer, client, err := ArgoCDClientset.NewRepoClient()
 			assert.NoError(t, err)
-			defer util.Close(closer)
+			defer misc.Close(closer)
 
 			details, err := client.GetAppDetails(context.Background(), &repositorypkg.RepoAppDetailsQuery{
 				Source: &app.Spec.Source,
@@ -483,7 +485,7 @@ func TestResourceAction(t *testing.T) {
 
 			closer, client, err := ArgoCDClientset.NewApplicationClient()
 			assert.NoError(t, err)
-			defer util.Close(closer)
+			defer misc.Close(closer)
 
 			actions, err := client.ListResourceActions(context.Background(), &applicationpkg.ApplicationResourceRequest{
 				Name:         &app.Name,
@@ -636,7 +638,7 @@ func TestPermissions(t *testing.T) {
 	time.Sleep(1 * time.Second)
 	closer, client, err := ArgoCDClientset.NewApplicationClient()
 	assert.NoError(t, err)
-	defer util.Close(closer)
+	defer misc.Close(closer)
 
 	refresh := string(RefreshTypeNormal)
 	app, err := client.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName, Refresh: &refresh})
@@ -769,8 +771,8 @@ func TestExcludedResource(t *testing.T) {
 	Given(t).
 		ResourceOverrides(map[string]ResourceOverride{"apps/Deployment": {Actions: actionsConfig}}).
 		Path(guestbookPath).
-		ResourceFilter(settings.ResourcesFilter{
-			ResourceExclusions: []settings.FilteredResource{{Kinds: []string{kube.DeploymentKind}}},
+		ResourceFilter(resource.ResourcesFilter{
+			ResourceExclusions: []resource.FilteredResource{{Kinds: []string{kube.DeploymentKind}}},
 		}).
 		When().
 		Create().

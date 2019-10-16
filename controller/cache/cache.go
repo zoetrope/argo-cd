@@ -5,6 +5,10 @@ import (
 	"reflect"
 	"sync"
 
+	"github.com/argoproj/argo-cd/engine/util/misc"
+
+	"github.com/argoproj/argo-cd/engine/resource"
+
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -14,17 +18,14 @@ import (
 
 	"github.com/argoproj/argo-cd/controller/metrics"
 	"github.com/argoproj/argo-cd/engine"
+	"github.com/argoproj/argo-cd/engine/util/kube"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/settings"
 )
 
 type cacheSettings struct {
 	ResourceOverrides   map[string]appv1.ResourceOverride
 	AppInstanceLabelKey string
-	ResourcesFilter     *settings.ResourcesFilter
+	ResourcesFilter     *resource.ResourcesFilter
 }
 
 type LiveStateCache interface {
@@ -246,8 +247,8 @@ func (c *liveStateCache) Run(ctx context.Context) error {
 
 	go c.watchSettings(ctx)
 
-	util.RetryUntilSucceed(func() error {
-		clusterEventCallback := func(event *db.ClusterEvent) {
+	misc.RetryUntilSucceed(func() error {
+		clusterEventCallback := func(event *engine.ClusterEvent) {
 			c.lock.Lock()
 			defer c.lock.Unlock()
 			if cluster, ok := c.clusters[event.Cluster.Server]; ok {

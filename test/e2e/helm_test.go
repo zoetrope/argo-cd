@@ -8,8 +8,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/argoproj/argo-cd/errors"
-	. "github.com/argoproj/argo-cd/errors"
+	. "github.com/argoproj/argo-cd/engine/util/errors"
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture"
@@ -197,14 +196,14 @@ func testHelmWithDependencies(t *testing.T, legacyRepo bool) {
 	ctx := Given(t).CustomCACertAdded()
 	if legacyRepo {
 		ctx.And(func() {
-			errors.FailOnErr(fixture.Run("", "kubectl", "create", "secret", "generic", "helm-repo",
+			FailOnErr(fixture.Run("", "kubectl", "create", "secret", "generic", "helm-repo",
 				"-n", fixture.ArgoCDNamespace,
 				fmt.Sprintf("--from-file=certSecret=%s", repos.CertPath),
 				fmt.Sprintf("--from-file=keySecret=%s", repos.CertKeyPath),
 				fmt.Sprintf("--from-literal=username=%s", GitUsername),
 				fmt.Sprintf("--from-literal=password=%s", GitPassword),
 			))
-			errors.FailOnErr(fixture.KubeClientset.CoreV1().Secrets(fixture.ArgoCDNamespace).Patch(
+			FailOnErr(fixture.KubeClientset.CoreV1().Secrets(fixture.ArgoCDNamespace).Patch(
 				"helm-repo", types.MergePatchType, []byte(`{"metadata": { "labels": {"e2e.argoproj.io": "true"} }}`)))
 
 			fixture.SetHelmRepos(settings.HelmRepoCredentials{

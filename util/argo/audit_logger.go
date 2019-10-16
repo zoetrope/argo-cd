@@ -20,15 +20,6 @@ type AuditLogger struct {
 	ns        string
 }
 
-const (
-	EventReasonStatusRefreshed    = "StatusRefreshed"
-	EventReasonResourceCreated    = "ResourceCreated"
-	EventReasonResourceUpdated    = "ResourceUpdated"
-	EventReasonResourceDeleted    = "ResourceDeleted"
-	EventReasonOperationStarted   = "OperationStarted"
-	EventReasonOperationCompleted = "OperationCompleted"
-)
-
 func (l *AuditLogger) logEvent(objMeta metav1.ObjectMeta, gvk schema.GroupVersionKind, info engine.EventInfo, message string, logFields map[string]string) {
 	logCtx := log.WithFields(log.Fields{
 		"type":   info.Type,

@@ -5,8 +5,7 @@ package mocks
 import (
 	context "context"
 
-	db "github.com/argoproj/argo-cd/util/db"
-
+	engine "github.com/argoproj/argo-cd/engine"
 	mock "github.com/stretchr/testify/mock"
 
 	v1alpha1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -87,11 +86,11 @@ func (_m *CredentialsStore) ListHelmRepositories(ctx context.Context) ([]*v1alph
 }
 
 // WatchClusters provides a mock function with given fields: ctx, callback
-func (_m *CredentialsStore) WatchClusters(ctx context.Context, callback func(*db.ClusterEvent)) error {
+func (_m *CredentialsStore) WatchClusters(ctx context.Context, callback func(*engine.ClusterEvent)) error {
 	ret := _m.Called(ctx, callback)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, func(*db.ClusterEvent)) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, func(*engine.ClusterEvent)) error); ok {
 		r0 = rf(ctx, callback)
 	} else {
 		r0 = ret.Error(0)

@@ -3,9 +3,11 @@ package engine
 import (
 	"context"
 
+	"github.com/argoproj/argo-cd/engine/resource"
+
+	"k8s.io/apimachinery/pkg/watch"
+
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/settings"
 )
 
 // The GitOps engine API is represented by two interfaces ReconciliationSettings, CredentialsStore and settings if the Application object.
@@ -13,7 +15,7 @@ import (
 // ReconciliationSettings provides set of methods which expose manifest generation and diffing settings.
 type ReconciliationSettings interface {
 	GetAppInstanceLabelKey() (string, error)
-	GetResourcesFilter() (*settings.ResourcesFilter, error)
+	GetResourcesFilter() (*resource.ResourcesFilter, error)
 	GetResourceOverrides() (map[string]appv1.ResourceOverride, error)
 	GetConfigManagementPlugins() ([]appv1.ConfigManagementPlugin, error)
 	GetKustomizeBuildOptions() (string, error)
@@ -21,10 +23,16 @@ type ReconciliationSettings interface {
 	Unsubscribe(subCh chan<- bool)
 }
 
+// ClusterEvent contains information about cluster event
+type ClusterEvent struct {
+	Type    watch.EventType
+	Cluster *appv1.Cluster
+}
+
 // CredentialsStore allows to get repository and cluster credentials
 type CredentialsStore interface {
 	GetCluster(ctx context.Context, name string) (*appv1.Cluster, error)
-	WatchClusters(ctx context.Context, callback func(event *db.ClusterEvent)) error
+	WatchClusters(ctx context.Context, callback func(event *ClusterEvent)) error
 	ListHelmRepositories(ctx context.Context) ([]*appv1.Repository, error)
 	GetRepository(ctx context.Context, url string) (*appv1.Repository, error)
 }
@@ -35,6 +43,15 @@ type EventInfo struct {
 }
 
 // In addition to main API consumer have to provide infrastructure interfaces:
+
+const (
+	EventReasonStatusRefreshed    = "StatusRefreshed"
+	EventReasonResourceCreated    = "ResourceCreated"
+	EventReasonResourceUpdated    = "ResourceUpdated"
+	EventReasonResourceDeleted    = "ResourceDeleted"
+	EventReasonOperationStarted   = "OperationStarted"
+	EventReasonOperationCompleted = "OperationCompleted"
+)
 
 // AuditLogger allows to react to application events such as sync started, sync failed/completed etc.
 type AuditLogger interface {

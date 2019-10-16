@@ -3,7 +3,7 @@ package e2e
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/engine/util/errors"
 
 	"github.com/stretchr/testify/assert"
 

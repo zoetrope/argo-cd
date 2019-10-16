@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/argoproj/argo-cd/engine/resource"
+
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 
@@ -64,9 +66,9 @@ func TestGetResourceFilter(t *testing.T) {
 	_, settingsManager := fixtures(data)
 	filter, err := settingsManager.GetResourcesFilter()
 	assert.NoError(t, err)
-	assert.Equal(t, &ResourcesFilter{
-		ResourceExclusions: []FilteredResource{{APIGroups: []string{"group1"}, Kinds: []string{"kind1"}, Clusters: []string{"cluster1"}}},
-		ResourceInclusions: []FilteredResource{{APIGroups: []string{"group2"}, Kinds: []string{"kind2"}, Clusters: []string{"cluster2"}}},
+	assert.Equal(t, &resource.ResourcesFilter{
+		ResourceExclusions: []resource.FilteredResource{{APIGroups: []string{"group1"}, Kinds: []string{"kind1"}, Clusters: []string{"cluster1"}}},
+		ResourceInclusions: []resource.FilteredResource{{APIGroups: []string{"group2"}, Kinds: []string{"kind2"}, Clusters: []string{"cluster2"}}},
 	}, filter)
 }
 func TestGetConfigManagementPlugins(t *testing.T) {

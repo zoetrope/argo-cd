@@ -15,6 +15,8 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine/util/misc"
+
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -26,7 +28,14 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-cd/controller"
-	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/engine/hook"
+	"github.com/argoproj/argo-cd/engine/resource/ignore"
+	engineargo "github.com/argoproj/argo-cd/engine/util/argo"
+	"github.com/argoproj/argo-cd/engine/util/config"
+	"github.com/argoproj/argo-cd/engine/util/diff"
+	"github.com/argoproj/argo-cd/engine/util/errors"
+	"github.com/argoproj/argo-cd/engine/util/git"
+	"github.com/argoproj/argo-cd/engine/util/kube"
 	"github.com/argoproj/argo-cd/pkg/apiclient"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
@@ -36,15 +45,8 @@ import (
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	repoapiclient "github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/reposerver/repository"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/config"
-	"github.com/argoproj/argo-cd/util/diff"
-	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/hook"
-	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/resource/ignore"
 	"github.com/argoproj/argo-cd/util/templates"
 )
 
@@ -148,7 +150,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				os.Exit(1)
 			}
 			conn, appIf := argocdClient.NewApplicationClientOrDie()
-			defer util.Close(conn)
+			defer misc.Close(conn)
 			appCreateRequest := applicationpkg.ApplicationCreateRequest{
 				Application: app,
 				Upsert:      &upsert,
@@ -203,13 +205,13 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			}
 			acdClient := argocdclient.NewClientOrDie(clientOpts)
 			conn, appIf := acdClient.NewApplicationClientOrDie()
-			defer util.Close(conn)
+			defer misc.Close(conn)
 			appName := args[0]
 			app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName, Refresh: getRefreshType(refresh, hardRefresh)})
 			errors.CheckError(err)
 
 			pConn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(pConn)
+			defer misc.Close(pConn)
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: app.Spec.Project})
 			errors.CheckError(err)
 
@@ -424,7 +426,7 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			appName := args[0]
 			argocdClient := argocdclient.NewClientOrDie(clientOpts)
 			conn, appIf := argocdClient.NewApplicationClientOrDie()
-			defer util.Close(conn)
+			defer misc.Close(conn)
 			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
 			visited := setAppOptions(c.Flags(), app, &appOpts)
@@ -685,7 +687,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			}
 			appName := args[0]
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
-			defer util.Close(conn)
+			defer misc.Close(conn)
 			app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
 
@@ -847,7 +849,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			clientset := argocdclient.NewClientOrDie(clientOpts)
 			conn, appIf := clientset.NewApplicationClientOrDie()
-			defer util.Close(conn)
+			defer misc.Close(conn)
 			appName := args[0]
 			app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName, Refresh: getRefreshType(refresh, hardRefresh)})
 			errors.CheckError(err)
@@ -862,16 +864,16 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}, 0)
 
 			conn, settingsIf := clientset.NewSettingsClientOrDie()
-			defer util.Close(conn)
+			defer misc.Close(conn)
 			argoSettings, err := settingsIf.Get(context.Background(), &settingspkg.SettingsQuery{})
 			errors.CheckError(err)
 
 			if local != "" {
 				conn, clusterIf := clientset.NewClusterClientOrDie()
-				defer util.Close(conn)
+				defer misc.Close(conn)
 				cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Server: app.Spec.Destination.Server})
 				errors.CheckError(err)
-				util.Close(conn)
+				misc.Close(conn)
 				localObjs := groupLocalObjs(getLocalObjects(app, local, argoSettings.AppLabelKey, cluster.ServerVersion), liveObjs, app.Spec.Destination.Namespace)
 				for _, res := range resources.Items {
 					var live = &unstructured.Unstructured{}
@@ -954,7 +956,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					val := argoSettings.ResourceOverrides[k]
 					overrides[k] = *val
 				}
-				normalizer, err := argo.NewDiffNormalizer(app.Spec.IgnoreDifferences, overrides)
+				normalizer, err := engineargo.NewDiffNormalizer(app.Spec.IgnoreDifferences, overrides)
 				errors.CheckError(err)
 				// Diff is already available in ResourceDiff Diff field but we have to recalculate diff again due to https://github.com/yudai/gojsondiff/issues/31
 				diffRes := diff.Diff(item.target, item.live, normalizer)
@@ -1002,7 +1004,7 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				os.Exit(1)
 			}
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
-			defer util.Close(conn)
+			defer misc.Close(conn)
 			for _, appName := range args {
 				appDeleteReq := applicationpkg.ApplicationDeleteRequest{
 					Name: &appName,
@@ -1068,7 +1070,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		Short: "List applications",
 		Run: func(c *cobra.Command, args []string) {
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
-			defer util.Close(conn)
+			defer misc.Close(conn)
 			apps, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{})
 			errors.CheckError(err)
 			appList := apps.Items
@@ -1236,7 +1238,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 			acdClient := argocdclient.NewClientOrDie(clientOpts)
 			conn, appIf := acdClient.NewApplicationClientOrDie()
-			defer util.Close(conn)
+			defer misc.Close(conn)
 
 			appName := args[0]
 
@@ -1291,13 +1293,13 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				conn, settingsIf := acdClient.NewSettingsClientOrDie()
 				argoSettings, err := settingsIf.Get(context.Background(), &settingspkg.SettingsQuery{})
 				errors.CheckError(err)
-				util.Close(conn)
+				misc.Close(conn)
 
 				conn, clusterIf := acdClient.NewClusterClientOrDie()
-				defer util.Close(conn)
+				defer misc.Close(conn)
 				cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Server: app.Spec.Destination.Server})
 				errors.CheckError(err)
-				util.Close(conn)
+				misc.Close(conn)
 				localObjsStrings = getLocalObjectsString(app, local, cluster.ServerVersion, argoSettings.AppLabelKey, argoSettings.KustomizeOptions)
 			}
 
@@ -1441,7 +1443,7 @@ func getResourceStates(app *argoappv1.Application, selectedResources []argoappv1
 	if len(selectedResources) > 0 {
 		for i := len(states) - 1; i >= 0; i-- {
 			res := states[i]
-			if !argo.ContainsSyncResource(res.Name, schema.GroupVersionKind{Group: res.Group, Kind: res.Kind}, selectedResources) {
+			if !engineargo.ContainsSyncResource(res.Name, schema.GroupVersionKind{Group: res.Group, Kind: res.Kind}, selectedResources) {
 				states = append(states[:i], states[i+1:]...)
 			}
 		}
@@ -1526,7 +1528,7 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 	prevStates := make(map[string]*resourceState)
 	appEventCh := acdClient.WatchApplicationWithRetry(ctx, appName)
 	conn, appClient := acdClient.NewApplicationClientOrDie()
-	defer util.Close(conn)
+	defer misc.Close(conn)
 	app, err := appClient.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
 	errors.CheckError(err)
 
@@ -1687,7 +1689,7 @@ func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra
 				os.Exit(1)
 			}
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
-			defer util.Close(conn)
+			defer misc.Close(conn)
 			appName := args[0]
 			app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
@@ -1721,7 +1723,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			errors.CheckError(err)
 			acdClient := argocdclient.NewClientOrDie(clientOpts)
 			conn, appIf := acdClient.NewApplicationClientOrDie()
-			defer util.Close(conn)
+			defer misc.Close(conn)
 			ctx := context.Background()
 			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
@@ -1794,7 +1796,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 			}
 			appName := args[0]
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
-			defer util.Close(conn)
+			defer misc.Close(conn)
 			ctx := context.Background()
 			resources, err := appIf.ManagedResources(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 			errors.CheckError(err)
@@ -1852,7 +1854,7 @@ func NewApplicationTerminateOpCommand(clientOpts *argocdclient.ClientOptions) *c
 			}
 			appName := args[0]
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
-			defer util.Close(conn)
+			defer misc.Close(conn)
 			ctx := context.Background()
 			_, err := appIf.TerminateOperation(ctx, &applicationpkg.OperationTerminateRequest{Name: &appName})
 			errors.CheckError(err)
@@ -1873,7 +1875,7 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 			appName := args[0]
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
-			defer util.Close(conn)
+			defer misc.Close(conn)
 			app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
 			appData, err := json.Marshal(app.Spec)
@@ -1922,7 +1924,7 @@ func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			}
 			appName := args[0]
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
-			defer util.Close(conn)
+			defer misc.Close(conn)
 
 			patchedApp, err := appIf.Patch(context.Background(), &applicationpkg.ApplicationPatchRequest{
 				Name:      &appName,
@@ -2009,7 +2011,7 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 		appName := args[0]
 
 		conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
-		defer util.Close(conn)
+		defer misc.Close(conn)
 		ctx := context.Background()
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 		errors.CheckError(err)

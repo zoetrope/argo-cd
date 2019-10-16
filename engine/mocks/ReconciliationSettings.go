@@ -3,7 +3,7 @@
 package mocks
 
 import (
-	settings "github.com/argoproj/argo-cd/util/settings"
+	resource "github.com/argoproj/argo-cd/engine/resource"
 	mock "github.com/stretchr/testify/mock"
 
 	v1alpha1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -103,15 +103,15 @@ func (_m *ReconciliationSettings) GetResourceOverrides() (map[string]v1alpha1.Re
 }
 
 // GetResourcesFilter provides a mock function with given fields:
-func (_m *ReconciliationSettings) GetResourcesFilter() (*settings.ResourcesFilter, error) {
+func (_m *ReconciliationSettings) GetResourcesFilter() (*resource.ResourcesFilter, error) {
 	ret := _m.Called()
 
-	var r0 *settings.ResourcesFilter
-	if rf, ok := ret.Get(0).(func() *settings.ResourcesFilter); ok {
+	var r0 *resource.ResourcesFilter
+	if rf, ok := ret.Get(0).(func() *resource.ResourcesFilter); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*settings.ResourcesFilter)
+			r0 = ret.Get(0).(*resource.ResourcesFilter)
 		}
 	}
 

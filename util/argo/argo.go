@@ -4,44 +4,30 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine/util/misc"
+
 	log "github.com/sirupsen/logrus"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/engine"
+	"github.com/argoproj/argo-cd/engine/util/git"
+	"github.com/argoproj/argo-cd/engine/util/helm"
+	"github.com/argoproj/argo-cd/engine/util/kube"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/pkg/client/clientset/versioned/typed/application/v1alpha1"
-	applicationsv1 "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/helm"
-	"github.com/argoproj/argo-cd/util/kube"
 )
 
 const (
 	errDestinationMissing = "Destination server and/or namespace missing from app spec"
 )
-
-// FormatAppConditions returns string representation of give app condition list
-func FormatAppConditions(conditions []argoappv1.ApplicationCondition) string {
-	formattedConditions := make([]string, 0)
-	for _, condition := range conditions {
-		formattedConditions = append(formattedConditions, fmt.Sprintf("%s: %s", condition.Type, condition.Message))
-	}
-	return strings.Join(formattedConditions, ";")
-}
 
 // FilterByProjects returns applications which belongs to the specified project
 func FilterByProjects(apps []argoappv1.Application, projects []string) []argoappv1.Application {
@@ -179,7 +165,7 @@ func ValidateRepo(
 	if err != nil {
 		return nil, err
 	}
-	defer util.Close(conn)
+	defer misc.Close(conn)
 	repo, err := db.GetRepository(ctx, spec.Source.RepoURL)
 	if err != nil {
 		return nil, err
@@ -261,61 +247,6 @@ func enrichSpec(spec *argoappv1.ApplicationSpec, appDetails *apiclient.RepoAppDe
 	}
 }
 
-// ValidatePermissions ensures that the referenced cluster has been added to Argo CD and the app source repo and destination namespace/cluster are permitted in app project
-func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, proj *argoappv1.AppProject, db engine.CredentialsStore) ([]argoappv1.ApplicationCondition, error) {
-	conditions := make([]argoappv1.ApplicationCondition, 0)
-	if spec.Source.RepoURL == "" || (spec.Source.Path == "" && spec.Source.Chart == "") {
-		conditions = append(conditions, argoappv1.ApplicationCondition{
-			Type:    argoappv1.ApplicationConditionInvalidSpecError,
-			Message: "spec.source.repoURL and spec.source.path either spec.source.chart are required",
-		})
-		return conditions, nil
-	}
-	if spec.Source.Chart != "" && spec.Source.TargetRevision == "" {
-		conditions = append(conditions, argoappv1.ApplicationCondition{
-			Type:    argoappv1.ApplicationConditionInvalidSpecError,
-			Message: "spec.source.targetRevision is required if the manifest source is a helm chart",
-		})
-		return conditions, nil
-	}
-
-	if !proj.IsSourcePermitted(spec.Source) {
-		conditions = append(conditions, argoappv1.ApplicationCondition{
-			Type:    argoappv1.ApplicationConditionInvalidSpecError,
-			Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", spec.Source.RepoURL, spec.Project),
-		})
-	}
-
-	if spec.Destination.Server != "" && spec.Destination.Namespace != "" {
-		if !proj.IsDestinationPermitted(spec.Destination) {
-			conditions = append(conditions, argoappv1.ApplicationCondition{
-				Type:    argoappv1.ApplicationConditionInvalidSpecError,
-				Message: fmt.Sprintf("application destination %v is not permitted in project '%s'", spec.Destination, spec.Project),
-			})
-		}
-		// Ensure the k8s cluster the app is referencing, is configured in Argo CD
-		_, err := db.GetCluster(ctx, spec.Destination.Server)
-		if err != nil {
-			if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
-				conditions = append(conditions, argoappv1.ApplicationCondition{
-					Type:    argoappv1.ApplicationConditionInvalidSpecError,
-					Message: fmt.Sprintf("cluster '%s' has not been configured", spec.Destination.Server),
-				})
-			} else {
-				return nil, err
-			}
-		}
-	} else {
-		conditions = append(conditions, argoappv1.ApplicationCondition{Type: argoappv1.ApplicationConditionInvalidSpecError, Message: errDestinationMissing})
-	}
-	return conditions, nil
-}
-
-// GetAppProject returns a project from an application
-func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.AppProjectLister, ns string) (*argoappv1.AppProject, error) {
-	return projLister.AppProjects(ns).Get(spec.GetProject())
-}
-
 // verifyGenerateManifests verifies a repo path can generate manifests
 func verifyGenerateManifests(
 	ctx context.Context,
@@ -364,67 +295,4 @@ func verifyGenerateManifests(
 	}
 
 	return conditions
-}
-
-// SetAppOperation updates an application with the specified operation, retrying conflict errors
-func SetAppOperation(appIf v1alpha1.ApplicationInterface, appName string, op *argoappv1.Operation) (*argoappv1.Application, error) {
-	for {
-		a, err := appIf.Get(appName, metav1.GetOptions{})
-		if err != nil {
-			return nil, err
-		}
-		if a.Operation != nil {
-			return nil, status.Errorf(codes.FailedPrecondition, "another operation is already in progress")
-		}
-		a.Operation = op
-		a.Status.OperationState = nil
-		a, err = appIf.Update(a)
-		if op.Sync == nil {
-			return nil, status.Errorf(codes.InvalidArgument, "Operation unspecified")
-		}
-		if err == nil {
-			return a, nil
-		}
-		if !apierr.IsConflict(err) {
-			return nil, err
-		}
-		log.Warnf("Failed to set operation for app '%s' due to update conflict. Retrying again...", appName)
-	}
-}
-
-// ContainsSyncResource determines if the given resource exists in the provided slice of sync operation resources.
-func ContainsSyncResource(name string, gvk schema.GroupVersionKind, rr []argoappv1.SyncOperationResource) bool {
-	for _, r := range rr {
-		if r.HasIdentity(name, gvk) {
-			return true
-		}
-	}
-	return false
-}
-
-// NormalizeApplicationSpec will normalize an application spec to a preferred state. This is used
-// for migrating application objects which are using deprecated legacy fields into the new fields,
-// and defaulting fields in the spec (e.g. spec.project)
-func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.ApplicationSpec {
-	spec = spec.DeepCopy()
-	if spec.Project == "" {
-		spec.Project = common.DefaultAppProjectName
-	}
-
-	// 3. If any app sources are their zero values, then nil out the pointers to the source spec.
-	// This makes it easier for users to switch between app source types if they are not using
-	// any of the source-specific parameters.
-	if spec.Source.Kustomize != nil && spec.Source.Kustomize.IsZero() {
-		spec.Source.Kustomize = nil
-	}
-	if spec.Source.Helm != nil && spec.Source.Helm.IsZero() {
-		spec.Source.Helm = nil
-	}
-	if spec.Source.Ksonnet != nil && spec.Source.Ksonnet.IsZero() {
-		spec.Source.Ksonnet = nil
-	}
-	if spec.Source.Directory != nil && spec.Source.Directory.IsZero() {
-		spec.Source.Directory = nil
-	}
-	return spec
 }

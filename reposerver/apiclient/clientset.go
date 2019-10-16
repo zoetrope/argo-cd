@@ -4,18 +4,19 @@ import (
 	"crypto/tls"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine/util/misc"
+
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	"github.com/argoproj/argo-cd/util"
 	argogrpc "github.com/argoproj/argo-cd/util/grpc"
 )
 
 // Clientset represets repository server api clients
 type Clientset interface {
-	NewRepoServerClient() (util.Closer, RepoServerServiceClient, error)
+	NewRepoServerClient() (misc.Closer, RepoServerServiceClient, error)
 }
 
 type clientSet struct {
@@ -23,7 +24,7 @@ type clientSet struct {
 	timeoutSeconds int
 }
 
-func (c *clientSet) NewRepoServerClient() (util.Closer, RepoServerServiceClient, error) {
+func (c *clientSet) NewRepoServerClient() (misc.Closer, RepoServerServiceClient, error) {
 	retryOpts := []grpc_retry.CallOption{
 		grpc_retry.WithMax(3),
 		grpc_retry.WithBackoff(grpc_retry.BackoffLinear(1000 * time.Millisecond)),

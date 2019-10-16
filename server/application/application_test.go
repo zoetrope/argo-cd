@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine/util/misc"
+
 	"github.com/dgrijalva/jwt-go"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
@@ -20,7 +22,9 @@ import (
 	kubetesting "k8s.io/client-go/testing"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/engine/util/errors"
+	"github.com/argoproj/argo-cd/engine/util/kube/kubetest"
+	"github.com/argoproj/argo-cd/engine/util/rbac"
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
@@ -30,12 +34,9 @@ import (
 	mockrepo "github.com/argoproj/argo-cd/reposerver/mocks"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/test"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/assets"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/kube/kubetest"
-	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -159,7 +160,7 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 		&kubetest.MockKubectlCmd{},
 		db,
 		enforcer,
-		util.NewKeyLock(),
+		misc.NewKeyLock(),
 		settingsMgr,
 	)
 	return server.(*Server)

@@ -23,7 +23,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubectl/util/term"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/engine/util/errors"
 )
 
 // NewVersionCmd returns a new `version` command to be used as a sub-command to root

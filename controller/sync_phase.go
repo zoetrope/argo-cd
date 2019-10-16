@@ -3,8 +3,8 @@ package controller
 import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
+	"github.com/argoproj/argo-cd/engine/hook"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/hook"
 )
 
 func syncPhases(obj *unstructured.Unstructured) []v1alpha1.SyncPhase {
