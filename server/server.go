@@ -309,7 +309,7 @@ func (a *ArgoCDServer) Shutdown() {
 // watchSettings watches the configmap and secret for any setting updates that would warrant a
 // restart of the API server.
 func (a *ArgoCDServer) watchSettings() {
-	updateCh := make(chan *settings_util.ArgoCDSettings, 1)
+	updateCh := make(chan bool, 1)
 	a.settingsMgr.Subscribe(updateCh)
 
 	prevURL := a.settings.URL
@@ -327,7 +327,11 @@ func (a *ArgoCDServer) watchSettings() {
 	}
 
 	for {
-		newSettings := <-updateCh
+		_ = <-updateCh
+		newSettings, err := a.settingsMgr.GetSettings()
+		if err != nil {
+			continue
+		}
 		a.settings = newSettings
 		newDexCfgBytes, err := dex.GenerateDexConfigYAML(a.settings)
 		errors.CheckError(err)

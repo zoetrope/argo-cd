@@ -5,6 +5,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/util/argo"
+	"github.com/argoproj/argo-cd/util/db"
+
+	"github.com/argoproj/argo-cd/engine"
+
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -22,7 +27,6 @@ import (
 	mockstatecache "github.com/argoproj/argo-cd/controller/cache/mocks"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
-	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	mockrepoclient "github.com/argoproj/argo-cd/reposerver/apiclient/mocks"
 	mockreposerver "github.com/argoproj/argo-cd/reposerver/mocks"
 	"github.com/argoproj/argo-cd/test"
@@ -39,10 +43,14 @@ type namespacedResource struct {
 
 type fakeData struct {
 	apps                []runtime.Object
-	manifestResponse    *apiclient.ManifestResponse
+	manifestResponse    *engine.ManifestResponse
 	managedLiveObjs     map[kube.ResourceKey]*unstructured.Unstructured
 	namespacedResources map[kube.ResourceKey]namespacedResource
 	configMapData       map[string]string
+}
+
+func (fd *fakeData) Generate(ctx context.Context, repo *argoappv1.Repository, revision string, source *argoappv1.ApplicationSource, setting *engine.ManifestGenerationSettings) (*engine.ManifestResponse, error) {
+	return fd.manifestResponse, nil
 }
 
 func newFakeController(data *fakeData) *ApplicationController {
@@ -84,15 +92,19 @@ func newFakeController(data *fakeData) *ApplicationController {
 	ctrl, err := NewApplicationController(
 		test.FakeArgoCDNamespace,
 		settingsMgr,
-		kubeClient,
+		db.NewDB(test.FakeArgoCDNamespace, settingsMgr, kubeClient),
+		argo.NewAuditLogger(test.FakeArgoCDNamespace, kubeClient, "argocd-application-controller"),
 		appclientset.NewSimpleClientset(data.apps...),
-		&mockRepoClientset,
+		data,
 		utilcache.NewCache(utilcache.NewInMemoryCache(1*time.Hour)),
 		kubectl,
 		time.Minute,
 		time.Minute,
 		common.DefaultPortArgoCDMetrics,
 		0,
+		func() error {
+			return nil
+		},
 	)
 	if err != nil {
 		panic(err)
@@ -428,7 +440,7 @@ func TestNormalizeApplication(t *testing.T) {
 	app.Spec.Source.Kustomize = &argoappv1.ApplicationSourceKustomize{NamePrefix: "foo-"}
 	data := fakeData{
 		apps: []runtime.Object{app, &defaultProj},
-		manifestResponse: &apiclient.ManifestResponse{
+		manifestResponse: &engine.ManifestResponse{
 			Manifests: []string{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,

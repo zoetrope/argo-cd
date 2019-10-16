@@ -197,7 +197,7 @@ type SettingsManager struct {
 	configmaps v1listers.ConfigMapLister
 	namespace  string
 	// subscribers is a list of subscribers to settings updates
-	subscribers []chan<- *ArgoCDSettings
+	subscribers []chan<- bool
 	// mutex protects concurrency sensitive parts of settings manager: access to subscribers list and initialization flag
 	mutex             *sync.Mutex
 	initContextCancel func()
@@ -474,11 +474,11 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	log.Info("Configmap/secret informer synced")
 
 	tryNotify := func() {
-		newSettings, err := mgr.GetSettings()
+		_, err := mgr.GetSettings()
 		if err != nil {
 			log.Warnf("Unable to parse updated settings: %v", err)
 		} else {
-			mgr.notifySubscribers(newSettings)
+			mgr.notifySubscribers()
 		}
 	}
 	now := time.Now()
@@ -874,7 +874,7 @@ func (a *ArgoCDSettings) DexOAuth2ClientSecret() string {
 }
 
 // Subscribe registers a channel in which to subscribe to settings updates
-func (mgr *SettingsManager) Subscribe(subCh chan<- *ArgoCDSettings) {
+func (mgr *SettingsManager) Subscribe(subCh chan<- bool) {
 	mgr.mutex.Lock()
 	defer mgr.mutex.Unlock()
 	mgr.subscribers = append(mgr.subscribers, subCh)
@@ -882,7 +882,7 @@ func (mgr *SettingsManager) Subscribe(subCh chan<- *ArgoCDSettings) {
 }
 
 // Unsubscribe unregisters a channel from receiving of settings updates
-func (mgr *SettingsManager) Unsubscribe(subCh chan<- *ArgoCDSettings) {
+func (mgr *SettingsManager) Unsubscribe(subCh chan<- bool) {
 	mgr.mutex.Lock()
 	defer mgr.mutex.Unlock()
 	for i, ch := range mgr.subscribers {
@@ -894,13 +894,13 @@ func (mgr *SettingsManager) Unsubscribe(subCh chan<- *ArgoCDSettings) {
 	}
 }
 
-func (mgr *SettingsManager) notifySubscribers(newSettings *ArgoCDSettings) {
+func (mgr *SettingsManager) notifySubscribers() {
 	mgr.mutex.Lock()
 	defer mgr.mutex.Unlock()
 	if len(mgr.subscribers) > 0 {
 		log.Infof("Notifying %d settings subscribers: %v", len(mgr.subscribers), mgr.subscribers)
 		for _, sub := range mgr.subscribers {
-			sub <- newSettings
+			sub <- true
 		}
 	}
 }

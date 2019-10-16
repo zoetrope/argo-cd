@@ -13,6 +13,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/controller/metrics"
+	"github.com/argoproj/argo-cd/engine"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/db"
@@ -52,11 +53,10 @@ func GetTargetObjKey(a *appv1.Application, un *unstructured.Unstructured, isName
 
 	return key
 }
-
 func NewLiveStateCache(
-	db db.ArgoDB,
+	db engine.CredentialsStore,
 	appInformer cache.SharedIndexInformer,
-	settingsMgr *settings.SettingsManager,
+	settingsMgr engine.ReconciliationSettings,
 	kubectl kube.Kubectl,
 	metricsServer *metrics.MetricsServer,
 	onObjectUpdated ObjectUpdatedHandler) LiveStateCache {
@@ -75,13 +75,13 @@ func NewLiveStateCache(
 }
 
 type liveStateCache struct {
-	db                db.ArgoDB
+	db                engine.CredentialsStore
 	clusters          map[string]*clusterInfo
 	lock              *sync.Mutex
 	appInformer       cache.SharedIndexInformer
 	onObjectUpdated   ObjectUpdatedHandler
 	kubectl           kube.Kubectl
-	settingsMgr       *settings.SettingsManager
+	settingsMgr       engine.ReconciliationSettings
 	metricsServer     *metrics.MetricsServer
 	cacheSettingsLock *sync.Mutex
 	cacheSettings     *cacheSettings
@@ -204,7 +204,7 @@ func (c *liveStateCache) getCacheSettings() *cacheSettings {
 }
 
 func (c *liveStateCache) watchSettings(ctx context.Context) {
-	updateCh := make(chan *settings.ArgoCDSettings, 1)
+	updateCh := make(chan bool, 1)
 	c.settingsMgr.Subscribe(updateCh)
 
 	done := false

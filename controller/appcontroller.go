@@ -20,13 +20,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/argoproj/argo-cd/common"
 	statecache "github.com/argoproj/argo-cd/controller/cache"
 	"github.com/argoproj/argo-cd/controller/metrics"
+	"github.com/argoproj/argo-cd/engine"
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -34,14 +34,10 @@ import (
 	appinformers "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-cd/pkg/client/informers/externalversions/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
-	argocache "github.com/argoproj/argo-cd/util/cache"
-	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/kube"
-	settings_util "github.com/argoproj/argo-cd/util/settings"
 )
 
 const (
@@ -67,12 +63,11 @@ func (a CompareWith) Max(b CompareWith) CompareWith {
 
 // ApplicationController is the controller for application resources.
 type ApplicationController struct {
-	cache                     *argocache.Cache
+	cache                     engine.AppStateCache
 	namespace                 string
-	kubeClientset             kubernetes.Interface
 	kubectl                   kube.Kubectl
 	applicationClientset      appclientset.Interface
-	auditLogger               *argo.AuditLogger
+	auditLogger               engine.AuditLogger
 	appRefreshQueue           workqueue.RateLimitingInterface
 	appOperationQueue         workqueue.RateLimitingInterface
 	appInformer               cache.SharedIndexInformer
@@ -82,9 +77,8 @@ type ApplicationController struct {
 	stateCache                statecache.LiveStateCache
 	statusRefreshTimeout      time.Duration
 	selfHealTimeout           time.Duration
-	repoClientset             apiclient.Clientset
-	db                        db.ArgoDB
-	settingsMgr               *settings_util.SettingsManager
+	db                        engine.CredentialsStore
+	settingsMgr               engine.ReconciliationSettings
 	refreshRequestedApps      map[string]CompareWith
 	refreshRequestedAppsMutex *sync.Mutex
 	metricsServer             *metrics.MetricsServer
@@ -99,32 +93,31 @@ type ApplicationControllerConfig struct {
 // NewApplicationController creates new instance of ApplicationController.
 func NewApplicationController(
 	namespace string,
-	settingsMgr *settings_util.SettingsManager,
-	kubeClientset kubernetes.Interface,
+	settingsMgr engine.ReconciliationSettings,
+	db engine.CredentialsStore,
+	auditLogger engine.AuditLogger,
 	applicationClientset appclientset.Interface,
-	repoClientset apiclient.Clientset,
-	argoCache *argocache.Cache,
+	repoClientset engine.ManifestGenerator,
+	argoCache engine.AppStateCache,
 	kubectl kube.Kubectl,
 	appResyncPeriod time.Duration,
 	selfHealTimeout time.Duration,
 	metricsPort int,
 	kubectlParallelismLimit int64,
+	healthCheck func() error,
 ) (*ApplicationController, error) {
-	db := db.NewDB(namespace, settingsMgr, kubeClientset)
 	ctrl := ApplicationController{
 		cache:                     argoCache,
 		namespace:                 namespace,
-		kubeClientset:             kubeClientset,
 		kubectl:                   kubectl,
 		applicationClientset:      applicationClientset,
-		repoClientset:             repoClientset,
 		appRefreshQueue:           workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
 		appOperationQueue:         workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
 		db:                        db,
 		statusRefreshTimeout:      appResyncPeriod,
 		refreshRequestedApps:      make(map[string]CompareWith),
 		refreshRequestedAppsMutex: &sync.Mutex{},
-		auditLogger:               argo.NewAuditLogger(namespace, kubeClientset, "argocd-application-controller"),
+		auditLogger:               auditLogger,
 		settingsMgr:               settingsMgr,
 		selfHealTimeout:           selfHealTimeout,
 	}
@@ -138,10 +131,7 @@ func NewApplicationController(
 	}
 	projInformer := v1alpha1.NewAppProjectInformer(applicationClientset, namespace, appResyncPeriod, cache.Indexers{})
 	metricsAddr := fmt.Sprintf("0.0.0.0:%d", metricsPort)
-	ctrl.metricsServer = metrics.NewMetricsServer(metricsAddr, appLister, func() error {
-		_, err := kubeClientset.Discovery().ServerVersion()
-		return err
-	})
+	ctrl.metricsServer = metrics.NewMetricsServer(metricsAddr, appLister, healthCheck)
 	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, kubectl, ctrl.metricsServer, ctrl.handleObjectUpdated)
 	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer)
 	ctrl.appInformer = appInformer
@@ -470,7 +460,7 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 				Message: err.Error(),
 			})
 			message := fmt.Sprintf("Unable to delete application resources: %v", err.Error())
-			ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonStatusRefreshed, Type: v1.EventTypeWarning}, message)
+			ctrl.auditLogger.LogAppEvent(app, engine.EventInfo{Reason: argo.EventReasonStatusRefreshed, Type: v1.EventTypeWarning}, message)
 		}
 	}
 	return
@@ -690,7 +680,7 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 		}
 		log.Infof("updated '%s' operation (phase: %s)", app.Name, state.Phase)
 		if state.Phase.Completed() {
-			eventInfo := argo.EventInfo{Reason: argo.EventReasonOperationCompleted}
+			eventInfo := engine.EventInfo{Reason: argo.EventReasonOperationCompleted}
 			var messages []string
 			if state.Operation.Sync != nil && len(state.Operation.Sync.Resources) > 0 {
 				messages = []string{"Partial sync operation"}
@@ -930,11 +920,11 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 	logCtx := log.WithFields(log.Fields{"application": orig.Name})
 	if orig.Status.Sync.Status != newStatus.Sync.Status {
 		message := fmt.Sprintf("Updated sync status: %s -> %s", orig.Status.Sync.Status, newStatus.Sync.Status)
-		ctrl.auditLogger.LogAppEvent(orig, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message)
+		ctrl.auditLogger.LogAppEvent(orig, engine.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message)
 	}
 	if orig.Status.Health.Status != newStatus.Health.Status {
 		message := fmt.Sprintf("Updated health status: %s -> %s", orig.Status.Health.Status, newStatus.Health.Status)
-		ctrl.auditLogger.LogAppEvent(orig, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message)
+		ctrl.auditLogger.LogAppEvent(orig, engine.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message)
 	}
 	var newAnnotations map[string]string
 	if orig.GetAnnotations() != nil {
@@ -1039,7 +1029,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: err.Error()}
 	}
 	message := fmt.Sprintf("Initiated automated sync to '%s'", desiredCommitSHA)
-	ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonOperationStarted, Type: v1.EventTypeNormal}, message)
+	ctrl.auditLogger.LogAppEvent(app, engine.EventInfo{Reason: argo.EventReasonOperationStarted, Type: v1.EventTypeNormal}, message)
 	logCtx.Info(message)
 	return nil
 }

@@ -96,7 +96,7 @@ func NewRunDexCommand() *cobra.Command {
 			settingsMgr := settings.NewSettingsManager(context.Background(), kubeClientset, namespace)
 			prevSettings, err := settingsMgr.GetSettings()
 			errors.CheckError(err)
-			updateCh := make(chan *settings.ArgoCDSettings, 1)
+			updateCh := make(chan bool, 1)
 			settingsMgr.Subscribe(updateCh)
 
 			for {
@@ -118,7 +118,9 @@ func NewRunDexCommand() *cobra.Command {
 
 				// loop until the dex config changes
 				for {
-					newSettings := <-updateCh
+					_ = <-updateCh
+					newSettings, err := settingsMgr.GetSettings()
+					errors.CheckError(err)
 					newDexCfgBytes, err := dex.GenerateDexConfigYAML(newSettings)
 					errors.CheckError(err)
 					if string(newDexCfgBytes) != string(dexCfgBytes) {

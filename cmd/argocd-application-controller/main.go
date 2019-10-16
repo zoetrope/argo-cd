@@ -18,11 +18,16 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller"
+	"github.com/argoproj/argo-cd/engine"
 	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/argoproj/argo-cd/util/stats"
@@ -34,6 +39,47 @@ const (
 	// Default time in seconds for application resync period
 	defaultAppResyncPeriod = 180
 )
+
+type grpcManifestGenerator struct {
+	repoClientset apiclient.Clientset
+}
+
+func (g *grpcManifestGenerator) Generate(
+	ctx context.Context,
+	repo *v1alpha1.Repository,
+	revision string,
+	source *v1alpha1.ApplicationSource,
+	setting *engine.ManifestGenerationSettings,
+) (*engine.ManifestResponse, error) {
+	conn, repoClient, err := g.repoClientset.NewRepoServerClient()
+	if err != nil {
+		return nil, err
+	}
+	defer util.Close(conn)
+	res, err := repoClient.GenerateManifest(ctx, &apiclient.ManifestRequest{
+		Repo:              repo,
+		Revision:          revision,
+		NoCache:           setting.NoCache,
+		AppLabelKey:       setting.AppLabelKey,
+		AppLabelValue:     setting.AppLabelValue,
+		Namespace:         setting.Namespace,
+		ApplicationSource: source,
+		Repos:             setting.Repos,
+		Plugins:           setting.Plugins,
+		KustomizeOptions:  setting.KustomizeOptions,
+		KubeVersion:       setting.KubeVersion,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &engine.ManifestResponse{
+		Namespace:  res.Namespace,
+		Server:     res.Server,
+		Revision:   res.Revision,
+		Manifests:  res.Manifests,
+		SourceType: res.SourceType,
+	}, nil
+}
 
 func newCommand() *cobra.Command {
 	var (
@@ -81,15 +127,19 @@ func newCommand() *cobra.Command {
 			appController, err := controller.NewApplicationController(
 				namespace,
 				settingsMgr,
-				kubeClient,
+				db.NewDB(namespace, settingsMgr, kubeClient),
+				argo.NewAuditLogger(namespace, kubeClient, "argocd-application-controller"),
 				appClient,
-				repoClientset,
+				&grpcManifestGenerator{repoClientset: repoClientset},
 				cache,
 				kubectl,
 				resyncDuration,
 				time.Duration(selfHealTimeoutSeconds)*time.Second,
 				metricsPort,
-				kubectlParallelismLimit)
+				kubectlParallelismLimit, func() error {
+					_, err := kubeClient.Discovery().ServerVersion()
+					return err
+				})
 			errors.CheckError(err)
 
 			log.Infof("Application Controller (version: %s) starting (namespace: %s)", common.GetVersion(), namespace)

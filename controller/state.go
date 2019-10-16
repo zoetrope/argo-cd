@@ -16,20 +16,18 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	statecache "github.com/argoproj/argo-cd/controller/cache"
 	"github.com/argoproj/argo-cd/controller/metrics"
+	"github.com/argoproj/argo-cd/engine"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
-	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/health"
 	hookutil "github.com/argoproj/argo-cd/util/hook"
 	kubeutil "github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/resource"
 	"github.com/argoproj/argo-cd/util/resource/ignore"
-	"github.com/argoproj/argo-cd/util/settings"
 )
 
 type managedResource struct {
@@ -76,17 +74,17 @@ type comparisonResult struct {
 // appStateManager allows to compare applications to git
 type appStateManager struct {
 	metricsServer  *metrics.MetricsServer
-	db             db.ArgoDB
-	settingsMgr    *settings.SettingsManager
+	db             engine.CredentialsStore
+	settingsMgr    engine.ReconciliationSettings
 	appclientset   appclientset.Interface
 	projInformer   cache.SharedIndexInformer
 	kubectl        kubeutil.Kubectl
-	repoClientset  apiclient.Clientset
+	repoClientset  engine.ManifestGenerator
 	liveStateCache statecache.LiveStateCache
 	namespace      string
 }
 
-func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache bool) ([]*unstructured.Unstructured, []*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
+func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache bool) ([]*unstructured.Unstructured, []*unstructured.Unstructured, *engine.ManifestResponse, error) {
 	helmRepos, err := m.db.ListHelmRepositories(context.Background())
 	if err != nil {
 		return nil, nil, nil, err
@@ -95,11 +93,6 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	defer util.Close(conn)
 
 	if revision == "" {
 		revision = source.TargetRevision
@@ -127,16 +120,13 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
-		Repo:              repo,
-		Repos:             helmRepos,
-		Revision:          revision,
-		NoCache:           noCache,
-		AppLabelKey:       appLabelKey,
-		AppLabelValue:     app.Name,
-		Namespace:         app.Spec.Destination.Namespace,
-		ApplicationSource: &source,
-		Plugins:           tools,
+	manifestInfo, err := m.repoClientset.Generate(context.Background(), repo, revision, &source, &engine.ManifestGenerationSettings{
+		Repos:         helmRepos,
+		NoCache:       noCache,
+		AppLabelKey:   appLabelKey,
+		AppLabelValue: app.Name,
+		Namespace:     app.Spec.Destination.Namespace,
+		Plugins:       tools,
 		KustomizeOptions: &appv1.KustomizeOptions{
 			BuildOptions: buildOptions,
 		},
@@ -289,7 +279,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 
 	var targetObjs []*unstructured.Unstructured
 	var hooks []*unstructured.Unstructured
-	var manifestInfo *apiclient.ManifestResponse
+	var manifestInfo *engine.ManifestResponse
 
 	if len(localManifests) == 0 {
 		targetObjs, hooks, manifestInfo, err = m.getRepoObjs(app, source, appLabelKey, revision, noCache)
@@ -512,12 +502,12 @@ func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revi
 
 // NewAppStateManager creates new instance of Ksonnet app comparator
 func NewAppStateManager(
-	db db.ArgoDB,
+	db engine.CredentialsStore,
 	appclientset appclientset.Interface,
-	repoClientset apiclient.Clientset,
+	repoClientset engine.ManifestGenerator,
 	namespace string,
 	kubectl kubeutil.Kubectl,
-	settingsMgr *settings.SettingsManager,
+	settingsMgr engine.ReconciliationSettings,
 	liveStateCache statecache.LiveStateCache,
 	projInformer cache.SharedIndexInformer,
 	metricsServer *metrics.MetricsServer,
