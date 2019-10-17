@@ -10,6 +10,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine/util/lua"
+
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -41,7 +43,7 @@ const (
 var syncIdPrefix uint64 = 0
 
 type syncContext struct {
-	resourceOverrides   map[string]v1alpha1.ResourceOverride
+	vm                  *lua.VM
 	appName             string
 	proj                *v1alpha1.AppProject
 	compareResult       *comparisonResult
@@ -163,11 +165,12 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		state.Message = fmt.Sprintf("Failed to load resource overrides: %v", err)
 		return
 	}
+	vm := m.luaVMFactory(resourceOverrides)
 
 	atomic.AddUint64(&syncIdPrefix, 1)
 	syncId := fmt.Sprintf("%05d-%s", syncIdPrefix, rand.RandString(5))
 	syncCtx := syncContext{
-		resourceOverrides:   resourceOverrides,
+		vm:                  vm,
 		appName:             app.Name,
 		proj:                proj,
 		compareResult:       compareResult,
@@ -247,7 +250,7 @@ func (sc *syncContext) sync() {
 			}
 		} else {
 			// this must be calculated on the live object
-			healthStatus, err := health.GetResourceHealth(task.liveObj, sc.resourceOverrides)
+			healthStatus, err := health.GetResourceHealth(task.liveObj, sc.vm)
 			if err == nil {
 				log.WithFields(log.Fields{"task": task, "healthStatus": healthStatus}).Debug("attempting to update health of running task")
 				if healthStatus == nil {

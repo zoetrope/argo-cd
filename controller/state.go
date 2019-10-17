@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine/util/lua"
+
 	"github.com/argoproj/argo-cd/engine/util/misc"
 
 	argo2 "github.com/argoproj/argo-cd/engine/util/argo"
@@ -84,6 +86,7 @@ type appStateManager struct {
 	repoClientset  engine.ManifestGenerator
 	liveStateCache statecache.LiveStateCache
 	namespace      string
+	luaVMFactory   func(map[string]v1alpha1.ResourceOverride) *lua.VM
 }
 
 func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache bool) ([]*unstructured.Unstructured, []*unstructured.Unstructured, *engine.ManifestResponse, error) {
@@ -445,7 +448,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		syncStatus.Revision = manifestInfo.Revision
 	}
 
-	healthStatus, err := health.SetApplicationHealth(resourceSummaries, GetLiveObjs(managedResources), resourceOverrides, func(obj *unstructured.Unstructured) bool {
+	healthStatus, err := health.SetApplicationHealth(resourceSummaries, GetLiveObjs(managedResources), m.luaVMFactory(resourceOverrides), func(obj *unstructured.Unstructured) bool {
 		return !isSelfReferencedApp(app, kubeutil.GetObjectRef(obj))
 	})
 
@@ -513,6 +516,7 @@ func NewAppStateManager(
 	liveStateCache statecache.LiveStateCache,
 	projInformer cache.SharedIndexInformer,
 	metricsServer *metrics.MetricsServer,
+	luaVMFactory func(map[string]v1alpha1.ResourceOverride) *lua.VM,
 ) AppStateManager {
 	return &appStateManager{
 		liveStateCache: liveStateCache,
@@ -524,5 +528,6 @@ func NewAppStateManager(
 		settingsMgr:    settingsMgr,
 		projInformer:   projInformer,
 		metricsServer:  metricsServer,
+		luaVMFactory:   luaVMFactory,
 	}
 }

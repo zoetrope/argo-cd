@@ -4,6 +4,8 @@ import (
 	"io/ioutil"
 	"testing"
 
+	"github.com/argoproj/argo-cd/engine/util/lua"
+
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,7 +28,7 @@ func getHealthStatus(yamlPath string, t *testing.T) *appv1.HealthStatus {
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	assert.Nil(t, err)
-	health, err := GetResourceHealth(&obj, nil)
+	health, err := GetResourceHealth(&obj, &lua.VM{})
 	assert.Nil(t, err)
 	return health
 }
@@ -122,7 +124,7 @@ func TestAppOfAppsHealth(t *testing.T) {
 	{
 		missingAndHealthyStatuses := []appv1.ResourceStatus{missingStatus, healthyStatus}
 		missingAndHealthyLiveObjects := []*unstructured.Unstructured{missingApp, healthyApp}
-		healthStatus, err := SetApplicationHealth(missingAndHealthyStatuses, missingAndHealthyLiveObjects, nil, noFilter)
+		healthStatus, err := SetApplicationHealth(missingAndHealthyStatuses, missingAndHealthyLiveObjects, &lua.VM{}, noFilter)
 		assert.NoError(t, err)
 		assert.Equal(t, appv1.HealthStatusHealthy, healthStatus.Status)
 	}
@@ -131,7 +133,7 @@ func TestAppOfAppsHealth(t *testing.T) {
 	{
 		degradedAndHealthyStatuses := []appv1.ResourceStatus{degradedStatus, healthyStatus}
 		degradedAndHealthyLiveObjects := []*unstructured.Unstructured{degradedApp, healthyApp}
-		healthStatus, err := SetApplicationHealth(degradedAndHealthyStatuses, degradedAndHealthyLiveObjects, nil, noFilter)
+		healthStatus, err := SetApplicationHealth(degradedAndHealthyStatuses, degradedAndHealthyLiveObjects, &lua.VM{}, noFilter)
 		assert.NoError(t, err)
 		assert.Equal(t, appv1.HealthStatusDegraded, healthStatus.Status)
 	}
@@ -169,13 +171,13 @@ func TestSetApplicationHealth(t *testing.T) {
 		&runningPod,
 		&failedJob,
 	}
-	healthStatus, err := SetApplicationHealth(resources, liveObjs, nil, noFilter)
+	healthStatus, err := SetApplicationHealth(resources, liveObjs, &lua.VM{}, noFilter)
 	assert.NoError(t, err)
 	assert.Equal(t, appv1.HealthStatusDegraded, healthStatus.Status)
 
 	// now mark the job as a hook and retry. it should ignore the hook and consider the app healthy
 	failedJob.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync"})
-	healthStatus, err = SetApplicationHealth(resources, liveObjs, nil, noFilter)
+	healthStatus, err = SetApplicationHealth(resources, liveObjs, &lua.VM{}, noFilter)
 	assert.NoError(t, err)
 	assert.Equal(t, appv1.HealthStatusHealthy, healthStatus.Status)
 }

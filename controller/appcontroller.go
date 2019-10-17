@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine/util/lua"
+
 	"github.com/argoproj/argo-cd/engine/common"
 
 	"github.com/argoproj/argo-cd/engine/util/misc"
@@ -107,6 +109,7 @@ func NewApplicationController(
 	metricsPort int,
 	kubectlParallelismLimit int64,
 	healthCheck func() error,
+	luaVMFactory func(map[string]appv1.ResourceOverride) *lua.VM,
 ) (*ApplicationController, error) {
 	ctrl := ApplicationController{
 		cache:                     argoCache,
@@ -134,8 +137,8 @@ func NewApplicationController(
 	projInformer := v1alpha1.NewAppProjectInformer(applicationClientset, namespace, appResyncPeriod, cache.Indexers{})
 	metricsAddr := fmt.Sprintf("0.0.0.0:%d", metricsPort)
 	ctrl.metricsServer = metrics.NewMetricsServer(metricsAddr, appLister, healthCheck)
-	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, kubectl, ctrl.metricsServer, ctrl.handleObjectUpdated)
-	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer)
+	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, kubectl, ctrl.metricsServer, ctrl.handleObjectUpdated, luaVMFactory)
+	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer, luaVMFactory)
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister
 	ctrl.projInformer = projInformer

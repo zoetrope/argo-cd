@@ -7,6 +7,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/argoproj/argo-cd/engine/util/lua"
+
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -165,6 +167,9 @@ func newClusterExt(kubectl kube.Kubectl) *clusterInfo {
 		log:             log.WithField("cluster", "test"),
 		cacheSettingsSrc: func() *cacheSettings {
 			return &cacheSettings{AppInstanceLabelKey: enginecommon.LabelKeyAppInstance}
+		},
+		luaVMFactory: func(overrides map[string]appv1.ResourceOverride) *lua.VM {
+			return &lua.VM{ResourceOverrides: overrides}
 		},
 	}
 }

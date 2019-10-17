@@ -44,12 +44,12 @@ func getPredefinedScript(objKey string, scriptType lua.ScriptType) (string, erro
 	return string(data), nil
 }
 
-func NewLuaVM(resourceOverrides map[string]v1alpha1.ResourceOverride) lua.VM {
+func NewLuaVM(resourceOverrides map[string]v1alpha1.ResourceOverride) *lua.VM {
 	return NewLuaVMExt(resourceOverrides, false)
 }
 
-func NewLuaVMExt(resourceOverrides map[string]v1alpha1.ResourceOverride, useOpenLibs bool) lua.VM {
-	return lua.VM{
+func NewLuaVMExt(resourceOverrides map[string]v1alpha1.ResourceOverride, useOpenLibs bool) *lua.VM {
+	return &lua.VM{
 		PredefinedScriptsSource: getPredefinedScript,
 		ResourceOverrides:       resourceOverrides,
 		UseOpenLibs:             useOpenLibs,

@@ -6,6 +6,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/argoproj/argo-cd/resource_customizations"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
@@ -140,7 +142,7 @@ func newCommand() *cobra.Command {
 				kubectlParallelismLimit, func() error {
 					_, err := kubeClient.Discovery().ServerVersion()
 					return err
-				})
+				}, resource_customizations.NewLuaVM)
 			errors.CheckError(err)
 
 			log.Infof("Application Controller (version: %s) starting (namespace: %s)", common.GetVersion(), namespace)

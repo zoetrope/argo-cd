@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine/util/lua"
+
 	"github.com/argoproj/argo-cd/engine/common"
 	"github.com/argoproj/argo-cd/engine/resource"
 
@@ -89,6 +91,11 @@ func newFakeController(data *fakeData) *ApplicationController {
 		0,
 		func() error {
 			return nil
+		},
+		func(overrides map[string]argoappv1.ResourceOverride) *lua.VM {
+			return &lua.VM{
+				ResourceOverrides: overrides,
+			}
 		},
 	)
 	if err != nil {

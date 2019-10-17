@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"sync"
 
+	"github.com/argoproj/argo-cd/engine/util/lua"
 	"github.com/argoproj/argo-cd/engine/util/misc"
 
 	"github.com/argoproj/argo-cd/engine/resource"
@@ -60,7 +61,8 @@ func NewLiveStateCache(
 	settingsMgr engine.ReconciliationSettings,
 	kubectl kube.Kubectl,
 	metricsServer *metrics.MetricsServer,
-	onObjectUpdated ObjectUpdatedHandler) LiveStateCache {
+	onObjectUpdated ObjectUpdatedHandler,
+	luaVMFactory func(map[string]appv1.ResourceOverride) *lua.VM) LiveStateCache {
 
 	return &liveStateCache{
 		appInformer:       appInformer,
@@ -72,6 +74,7 @@ func NewLiveStateCache(
 		settingsMgr:       settingsMgr,
 		metricsServer:     metricsServer,
 		cacheSettingsLock: &sync.Mutex{},
+		luaVMFactory:      luaVMFactory,
 	}
 }
 
@@ -86,6 +89,7 @@ type liveStateCache struct {
 	metricsServer     *metrics.MetricsServer
 	cacheSettingsLock *sync.Mutex
 	cacheSettings     *cacheSettings
+	luaVMFactory      func(map[string]appv1.ResourceOverride) *lua.VM
 }
 
 func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
@@ -125,6 +129,7 @@ func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 			syncLock:         &sync.Mutex{},
 			log:              log.WithField("server", cluster.Server),
 			cacheSettingsSrc: c.getCacheSettings,
+			luaVMFactory:     c.luaVMFactory,
 		}
 
 		c.clusters[cluster.Server] = info

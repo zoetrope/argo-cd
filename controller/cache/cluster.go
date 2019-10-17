@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine/util/lua"
+
 	"github.com/argoproj/argo-cd/engine/util/misc"
 
 	"k8s.io/apimachinery/pkg/types"
@@ -54,6 +56,7 @@ type clusterInfo struct {
 	cluster          *appv1.Cluster
 	log              *log.Entry
 	cacheSettingsSrc func() *cacheSettings
+	luaVMFactory     func(map[string]appv1.ResourceOverride) *lua.VM
 }
 
 func (c *clusterInfo) replaceResourceCache(gk schema.GroupKind, resourceVersion string, objs []unstructured.Unstructured) {
@@ -141,7 +144,8 @@ func (c *clusterInfo) createObjInfo(un *unstructured.Unstructured, appInstanceLa
 		nodeInfo.appName = appName
 		nodeInfo.resource = un
 	}
-	nodeInfo.health, _ = health.GetResourceHealth(un, c.cacheSettingsSrc().ResourceOverrides)
+	vm := c.luaVMFactory(c.cacheSettingsSrc().ResourceOverrides)
+	nodeInfo.health, _ = health.GetResourceHealth(un, vm)
 	return nodeInfo
 }
 

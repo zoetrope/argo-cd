@@ -3,14 +3,24 @@ package cache
 import (
 	"testing"
 
+	"github.com/argoproj/argo-cd/engine/util/lua"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+
 	"github.com/argoproj/argo-cd/engine/common"
 
 	"github.com/stretchr/testify/assert"
 )
 
-var c = &clusterInfo{cacheSettingsSrc: func() *cacheSettings {
-	return &cacheSettings{AppInstanceLabelKey: common.LabelKeyAppInstance}
-}}
+var c = &clusterInfo{
+	cacheSettingsSrc: func() *cacheSettings {
+		return &cacheSettings{AppInstanceLabelKey: common.LabelKeyAppInstance}
+	},
+	luaVMFactory: func(overrides map[string]v1alpha1.ResourceOverride) *lua.VM {
+		return &lua.VM{
+			ResourceOverrides: overrides,
+		}
+	},
+}
 
 func TestIsParentOf(t *testing.T) {
 	child := c.createObjInfo(testPod, "")
