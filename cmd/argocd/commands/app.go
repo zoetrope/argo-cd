@@ -29,6 +29,7 @@ import (
 
 	"github.com/argoproj/argo-cd/engine/controller"
 	"github.com/argoproj/argo-cd/engine/hook"
+	argoappv1 "github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/engine/resource/ignore"
 	engineargo "github.com/argoproj/argo-cd/engine/util/argo"
 	"github.com/argoproj/argo-cd/engine/util/config"
@@ -42,7 +43,6 @@ import (
 	clusterpkg "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
 	projectpkg "github.com/argoproj/argo-cd/pkg/apiclient/project"
 	settingspkg "github.com/argoproj/argo-cd/pkg/apiclient/settings"
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	repoapiclient "github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/util/argo"

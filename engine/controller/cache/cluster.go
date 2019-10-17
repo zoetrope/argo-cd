@@ -24,9 +24,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 
+	appv1 "github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/engine/util/health"
 	"github.com/argoproj/argo-cd/engine/util/kube"
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
 const (

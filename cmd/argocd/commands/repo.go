@@ -12,11 +12,11 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	appsv1 "github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/engine/util/errors"
 	"github.com/argoproj/argo-cd/engine/util/git"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
-	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/cli"
 )
 

@@ -6,8 +6,7 @@ import (
 
 	"github.com/argoproj/argo-cd/engine/resource"
 
-	. "github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/test/e2e/fixture/certs"
 	"github.com/argoproj/argo-cd/test/e2e/fixture/repos"

@@ -23,15 +23,14 @@ import (
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/common"
+	. "github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/engine/util/diff"
 	. "github.com/argoproj/argo-cd/engine/util/errors"
 	"github.com/argoproj/argo-cd/engine/util/kube"
 	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
 	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
-	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
-	. "github.com/argoproj/argo-cd/util/argo"
 )
 
 const (

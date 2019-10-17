@@ -7,8 +7,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/argo-cd/engine/hook"
+	"github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/engine/resource/syncwaves"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
 // syncTask holds the live and target object. At least one should be non-nil. A targetObj of nil

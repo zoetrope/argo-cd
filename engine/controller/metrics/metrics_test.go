@@ -15,10 +15,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
 
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
-	appinformer "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
-	applister "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
+	argoappv1 "github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/engine/pkg/client/clientset/versioned/fake"
+	appinformer "github.com/argoproj/argo-cd/engine/pkg/client/informers/externalversions"
+	applister "github.com/argoproj/argo-cd/engine/pkg/client/listers/application/v1alpha1"
 )
 
 const fakeApp = `

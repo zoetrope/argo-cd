@@ -8,8 +8,8 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/argoproj/argo-cd/engine/pkg/apis/application"
 	"github.com/argoproj/argo-cd/engine/util/kube"
-	"github.com/argoproj/argo-cd/pkg/apis/application"
 
 	"github.com/ghodss/yaml"
 	extensionsobj "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
@@ -26,7 +26,7 @@ var (
 func getCustomResourceDefinitions() map[string]*extensionsobj.CustomResourceDefinition {
 	crdYamlBytes, err := exec.Command(
 		"controller-gen",
-		"paths=./pkg/apis/application/...",
+		"paths=./engine/pkg/apis/application/...",
 		"crd:trivialVersions=true",
 		"output:crd:stdout",
 	).Output()

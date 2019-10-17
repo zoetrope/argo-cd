@@ -14,10 +14,10 @@ import (
 
 	"strconv"
 
+	"github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/engine/util/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	projectpkg "github.com/argoproj/argo-cd/pkg/apiclient/project"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
 // NewProjectWindowsCommand returns a new instance of the `argocd proj windows` command

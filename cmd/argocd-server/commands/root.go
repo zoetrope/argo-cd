@@ -10,8 +10,8 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	enginecommon "github.com/argoproj/argo-cd/engine/common"
+	appclientset "github.com/argoproj/argo-cd/engine/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/engine/util/errors"
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/server"
 	"github.com/argoproj/argo-cd/util/cache"

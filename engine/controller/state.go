@@ -26,14 +26,13 @@ import (
 
 	"github.com/argoproj/argo-cd/engine/common"
 	hookutil "github.com/argoproj/argo-cd/engine/hook"
+	appv1 "github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/engine/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/engine/resource"
 	"github.com/argoproj/argo-cd/engine/resource/ignore"
 	"github.com/argoproj/argo-cd/engine/util/diff"
 	"github.com/argoproj/argo-cd/engine/util/health"
 	kubeutil "github.com/argoproj/argo-cd/engine/util/kube"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 )
 
 type managedResource struct {
@@ -62,19 +61,19 @@ type ResourceInfoProvider interface {
 
 // AppStateManager defines methods which allow to compare application spec and actual application state.
 type AppStateManager interface {
-	CompareAppState(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, noCache bool, localObjects []string) *comparisonResult
-	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
+	CompareAppState(app *appv1.Application, revision string, source appv1.ApplicationSource, noCache bool, localObjects []string) *comparisonResult
+	SyncAppState(app *appv1.Application, state *appv1.OperationState)
 }
 
 type comparisonResult struct {
 	reconciledAt     metav1.Time
-	syncStatus       *v1alpha1.SyncStatus
-	healthStatus     *v1alpha1.HealthStatus
-	resources        []v1alpha1.ResourceStatus
+	syncStatus       *appv1.SyncStatus
+	healthStatus     *appv1.HealthStatus
+	resources        []appv1.ResourceStatus
 	managedResources []managedResource
 	hooks            []*unstructured.Unstructured
 	diffNormalizer   diff.Normalizer
-	appSourceType    v1alpha1.ApplicationSourceType
+	appSourceType    appv1.ApplicationSourceType
 }
 
 // appStateManager allows to compare applications to git
@@ -88,10 +87,10 @@ type appStateManager struct {
 	repoClientset  pkg.ManifestGenerator
 	liveStateCache controllercache.LiveStateCache
 	namespace      string
-	luaVMFactory   func(map[string]v1alpha1.ResourceOverride) *lua.VM
+	luaVMFactory   func(map[string]appv1.ResourceOverride) *lua.VM
 }
 
-func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache bool) ([]*unstructured.Unstructured, []*unstructured.Unstructured, *pkg.ManifestResponse, error) {
+func (m *appStateManager) getRepoObjs(app *appv1.Application, source appv1.ApplicationSource, appLabelKey, revision string, noCache bool) ([]*unstructured.Unstructured, []*unstructured.Unstructured, *pkg.ManifestResponse, error) {
 	helmRepos, err := m.db.ListHelmRepositories(context.Background())
 	if err != nil {
 		return nil, nil, nil, err
@@ -153,7 +152,7 @@ func unmarshalManifests(manifests []string) ([]*unstructured.Unstructured, []*un
 	targetObjs := make([]*unstructured.Unstructured, 0)
 	hooks := make([]*unstructured.Unstructured, 0)
 	for _, manifest := range manifests {
-		obj, err := v1alpha1.UnmarshalToUnstructured(manifest)
+		obj, err := appv1.UnmarshalToUnstructured(manifest)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -174,7 +173,7 @@ func DeduplicateTargetObjects(
 	namespace string,
 	objs []*unstructured.Unstructured,
 	infoProvider ResourceInfoProvider,
-) ([]*unstructured.Unstructured, []v1alpha1.ApplicationCondition, error) {
+) ([]*unstructured.Unstructured, []appv1.ApplicationCondition, error) {
 
 	targetByKey := make(map[kubeutil.ResourceKey][]*unstructured.Unstructured)
 	for i := range objs {
@@ -191,7 +190,7 @@ func DeduplicateTargetObjects(
 		key := kubeutil.GetResourceKey(obj)
 		targetByKey[key] = append(targetByKey[key], obj)
 	}
-	conditions := make([]v1alpha1.ApplicationCondition, 0)
+	conditions := make([]appv1.ApplicationCondition, 0)
 	result := make([]*unstructured.Unstructured, 0)
 	for key, targets := range targetByKey {
 		if len(targets) > 1 {
@@ -242,7 +241,7 @@ func dedupLiveResources(targetObjs []*unstructured.Unstructured, liveObjsByKey m
 	}
 }
 
-func (m *appStateManager) getComparisonSettings(app *appv1.Application) (string, map[string]v1alpha1.ResourceOverride, diff.Normalizer, error) {
+func (m *appStateManager) getComparisonSettings(app *appv1.Application) (string, map[string]appv1.ResourceOverride, diff.Normalizer, error) {
 	resourceOverrides, err := m.settingsMgr.GetResourceOverrides()
 	if err != nil {
 		return "", nil, nil, err
@@ -261,7 +260,7 @@ func (m *appStateManager) getComparisonSettings(app *appv1.Application) (string,
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
-func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, noCache bool, localManifests []string) *comparisonResult {
+func (m *appStateManager) CompareAppState(app *appv1.Application, revision string, source appv1.ApplicationSource, noCache bool, localManifests []string) *comparisonResult {
 	reconciledAt := metav1.Now()
 	appLabelKey, resourceOverrides, diffNormalizer, err := m.getComparisonSettings(app)
 
@@ -269,7 +268,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	if err != nil {
 		return &comparisonResult{
 			reconciledAt: reconciledAt,
-			syncStatus: &v1alpha1.SyncStatus{
+			syncStatus: &appv1.SyncStatus{
 				ComparedTo: appv1.ComparedTo{Source: source, Destination: app.Spec.Destination},
 				Status:     appv1.SyncStatusCodeUnknown,
 			},
@@ -279,7 +278,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 
 	// do best effort loading live and target state to present as much information about app state as possible
 	failedToLoadObjs := false
-	conditions := make([]v1alpha1.ApplicationCondition, 0)
+	conditions := make([]appv1.ApplicationCondition, 0)
 
 	logCtx := log.WithField("application", app.Name)
 	logCtx.Infof("Comparing app state (cluster: %s, namespace: %s)", app.Spec.Destination.Server, app.Spec.Destination.Namespace)
@@ -292,14 +291,14 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		targetObjs, hooks, manifestInfo, err = m.getRepoObjs(app, source, appLabelKey, revision, noCache)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)
-			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
+			conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
 			failedToLoadObjs = true
 		}
 	} else {
 		targetObjs, hooks, err = unmarshalManifests(localManifests)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)
-			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
+			conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
 			failedToLoadObjs = true
 		}
 		manifestInfo = nil
@@ -307,21 +306,21 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 
 	targetObjs, dedupConditions, err := DeduplicateTargetObjects(app.Spec.Destination.Server, app.Spec.Destination.Namespace, targetObjs, m.liveStateCache)
 	if err != nil {
-		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
+		conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
 	}
 	conditions = append(conditions, dedupConditions...)
 
 	resFilter, err := m.settingsMgr.GetResourcesFilter()
 	if err != nil {
-		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
+		conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
 	} else {
 		for i := len(targetObjs) - 1; i >= 0; i-- {
 			targetObj := targetObjs[i]
 			gvk := targetObj.GroupVersionKind()
 			if resFilter.IsExcludedResource(gvk.Group, gvk.Kind, app.Spec.Destination.Server) {
 				targetObjs = append(targetObjs[:i], targetObjs[i+1:]...)
-				conditions = append(conditions, v1alpha1.ApplicationCondition{
-					Type:    v1alpha1.ApplicationConditionExcludedResourceWarning,
+				conditions = append(conditions, appv1.ApplicationCondition{
+					Type:    appv1.ApplicationConditionExcludedResourceWarning,
 					Message: fmt.Sprintf("Resource %s/%s %s is excluded in the settings", gvk.Group, gvk.Kind, targetObj.GetName()),
 				})
 			}
@@ -333,7 +332,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	dedupLiveResources(targetObjs, liveObjByKey)
 	if err != nil {
 		liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
-		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
+		conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
 		failedToLoadObjs = true
 	}
 	logCtx.Debugf("Retrieved lived manifests")
@@ -341,8 +340,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		if liveObj != nil {
 			appInstanceName := kubeutil.GetAppInstanceLabel(liveObj, appLabelKey)
 			if appInstanceName != "" && appInstanceName != app.Name {
-				conditions = append(conditions, v1alpha1.ApplicationCondition{
-					Type:    v1alpha1.ApplicationConditionSharedResourceWarning,
+				conditions = append(conditions, appv1.ApplicationCondition{
+					Type:    appv1.ApplicationConditionSharedResourceWarning,
 					Message: fmt.Sprintf("%s/%s is part of a different application: %s", liveObj.GetKind(), liveObj.GetName(), appInstanceName),
 				})
 			}
@@ -378,12 +377,12 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	if err != nil {
 		diffResults = &diff.DiffResultList{}
 		failedToLoadObjs = true
-		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
+		conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
 	}
 
-	syncCode := v1alpha1.SyncStatusCodeSynced
+	syncCode := appv1.SyncStatusCodeSynced
 	managedResources := make([]managedResource, len(targetObjs))
-	resourceSummaries := make([]v1alpha1.ResourceStatus, len(targetObjs))
+	resourceSummaries := make([]appv1.ResourceStatus, len(targetObjs))
 	for i, targetObj := range targetObjs {
 		liveObj := managedLiveObj[i]
 		obj := liveObj
@@ -395,7 +394,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		}
 		gvk := obj.GroupVersionKind()
 
-		resState := v1alpha1.ResourceStatus{
+		resState := appv1.ResourceStatus{
 			Namespace:       obj.GetNamespace(),
 			Name:            obj.GetName(),
 			Kind:            gvk.Kind,
@@ -413,14 +412,14 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 			// * target and live resource are different
 			// * target resource not defined and live resource is extra
 			// * target resource present but live resource is missing
-			resState.Status = v1alpha1.SyncStatusCodeOutOfSync
+			resState.Status = appv1.SyncStatusCodeOutOfSync
 			// we ignore the status if the obj needs pruning AND we have the annotation
 			needsPruning := targetObj == nil && liveObj != nil
 			if !(needsPruning && resource.HasAnnotationOption(obj, common.AnnotationCompareOptions, "IgnoreExtraneous")) {
-				syncCode = v1alpha1.SyncStatusCodeOutOfSync
+				syncCode = appv1.SyncStatusCodeOutOfSync
 			}
 		} else {
-			resState.Status = v1alpha1.SyncStatusCodeSynced
+			resState.Status = appv1.SyncStatusCodeSynced
 		}
 		managedResources[i] = managedResource{
 			Name:      resState.Name,
@@ -437,9 +436,9 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	}
 
 	if failedToLoadObjs {
-		syncCode = v1alpha1.SyncStatusCodeUnknown
+		syncCode = appv1.SyncStatusCodeUnknown
 	}
-	syncStatus := v1alpha1.SyncStatus{
+	syncStatus := appv1.SyncStatus{
 		ComparedTo: appv1.ComparedTo{
 			Source:      source,
 			Destination: app.Spec.Destination,
@@ -455,7 +454,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	})
 
 	if err != nil {
-		conditions = append(conditions, appv1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
+		conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
 	}
 
 	compRes := comparisonResult{
@@ -468,7 +467,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		diffNormalizer:   diffNormalizer,
 	}
 	if manifestInfo != nil {
-		compRes.appSourceType = v1alpha1.ApplicationSourceType(manifestInfo.SourceType)
+		compRes.appSourceType = appv1.ApplicationSourceType(manifestInfo.SourceType)
 	}
 	app.Status.SetConditions(conditions, map[appv1.ApplicationConditionType]bool{
 		appv1.ApplicationConditionComparisonError:         true,
@@ -479,12 +478,12 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	return &compRes
 }
 
-func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource) error {
+func (m *appStateManager) persistRevisionHistory(app *appv1.Application, revision string, source appv1.ApplicationSource) error {
 	var nextID int64
 	if len(app.Status.History) > 0 {
 		nextID = app.Status.History[len(app.Status.History)-1].ID + 1
 	}
-	history := append(app.Status.History, v1alpha1.RevisionHistory{
+	history := append(app.Status.History, appv1.RevisionHistory{
 		Revision:   revision,
 		DeployedAt: metav1.NewTime(time.Now().UTC()),
 		ID:         nextID,
@@ -495,7 +494,7 @@ func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revi
 		history = history[1 : common.RevisionHistoryLimit+1]
 	}
 
-	patch, err := json.Marshal(map[string]map[string][]v1alpha1.RevisionHistory{
+	patch, err := json.Marshal(map[string]map[string][]appv1.RevisionHistory{
 		"status": {
 			"history": history,
 		},
@@ -518,7 +517,7 @@ func NewAppStateManager(
 	liveStateCache controllercache.LiveStateCache,
 	projInformer cache.SharedIndexInformer,
 	metricsServer *metrics.MetricsServer,
-	luaVMFactory func(map[string]v1alpha1.ResourceOverride) *lua.VM,
+	luaVMFactory func(map[string]appv1.ResourceOverride) *lua.VM,
 ) AppStateManager {
 	return &appStateManager{
 		liveStateCache: liveStateCache,

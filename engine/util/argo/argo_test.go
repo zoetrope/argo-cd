@@ -7,10 +7,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
-	"github.com/argoproj/argo-cd/pkg/client/informers/externalversions/application/v1alpha1"
-	applisters "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
+	argoappv1 "github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/engine/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-cd/engine/pkg/client/informers/externalversions/application/v1alpha1"
+	applisters "github.com/argoproj/argo-cd/engine/pkg/client/listers/application/v1alpha1"
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/client-go/tools/cache"

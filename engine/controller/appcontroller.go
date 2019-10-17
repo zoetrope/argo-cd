@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"k8s.io/apimachinery/pkg/labels"
+
 	argocache "github.com/argoproj/argo-cd/engine/controller/cache"
 	"github.com/argoproj/argo-cd/engine/controller/metrics"
 
@@ -34,16 +36,16 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
+	"github.com/argoproj/argo-cd/engine/pkg/apis/application"
+	appv1 "github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/engine/pkg/client/clientset/versioned"
+	appinformers "github.com/argoproj/argo-cd/engine/pkg/client/informers/externalversions"
+	"github.com/argoproj/argo-cd/engine/pkg/client/informers/externalversions/application/v1alpha1"
+	applisters "github.com/argoproj/argo-cd/engine/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/engine/util/argo"
 	"github.com/argoproj/argo-cd/engine/util/diff"
 	"github.com/argoproj/argo-cd/engine/util/errors"
 	"github.com/argoproj/argo-cd/engine/util/kube"
-	"github.com/argoproj/argo-cd/pkg/apis/application"
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	appinformers "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
-	"github.com/argoproj/argo-cd/pkg/client/informers/externalversions/application/v1alpha1"
-	applisters "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 )
 
 const (
@@ -411,6 +413,17 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	}
 
 	<-ctx.Done()
+}
+
+func (ctrl *ApplicationController) RefreshApps() error {
+	apps, err := ctrl.appLister.List(labels.Everything())
+	if err != nil {
+		return err
+	}
+	for i := range apps {
+		ctrl.requestAppRefresh(apps[i].Name, CompareWithLatest)
+	}
+	return nil
 }
 
 func (ctrl *ApplicationController) requestAppRefresh(appName string, compareWith CompareWith) {

@@ -10,7 +10,7 @@ import (
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
+	appclientset "github.com/argoproj/argo-cd/engine/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 

@@ -20,10 +20,10 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	enginecommon "github.com/argoproj/argo-cd/engine/common"
+	argoappv1 "github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/engine/util/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	clusterpkg "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/clusterauth"
 )
 

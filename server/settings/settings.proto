@@ -8,7 +8,7 @@ package cluster;
 
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
-import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.proto";
+import "github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1/generated.proto";
 import "github.com/argoproj/argo-cd/server/settings/oidc/claims.proto";
 
 // SettingsQuery is a query for Argo CD settings
@@ -20,10 +20,10 @@ message Settings {
     DexConfig dexConfig = 2;
     OIDCConfig oidcConfig = 3 [(gogoproto.customname) = "OIDCConfig"];
     string appLabelKey = 4;
-    map<string, github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ResourceOverride> resourceOverrides = 5;
+    map<string, github.com.argoproj.argo_cd.engine.pkg.apis.application.v1alpha1.ResourceOverride> resourceOverrides = 5;
     bool statusBadgeEnabled = 6;
     GoogleAnalyticsConfig googleAnalytics = 7;
-    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 8;
+    github.com.argoproj.argo_cd.engine.pkg.apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 8;
     // Help settings
     Help help = 9;
     repeated Plugin plugins = 10;

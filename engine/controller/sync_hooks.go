@@ -11,7 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/kubernetes/pkg/apis/batch"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
 )
 
 // getOperationPhase returns a hook status from an _live_ unstructured object

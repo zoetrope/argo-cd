@@ -28,6 +28,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/argoproj/argo-cd/common"
+	argoappv1 "github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
 	accountpkg "github.com/argoproj/argo-cd/pkg/apiclient/account"
 	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
 	certificatepkg "github.com/argoproj/argo-cd/pkg/apiclient/certificate"
@@ -37,8 +38,6 @@ import (
 	sessionpkg "github.com/argoproj/argo-cd/pkg/apiclient/session"
 	settingspkg "github.com/argoproj/argo-cd/pkg/apiclient/settings"
 	versionpkg "github.com/argoproj/argo-cd/pkg/apiclient/version"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/localconfig"
 	oidcutil "github.com/argoproj/argo-cd/util/oidc"
@@ -607,7 +606,7 @@ func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string) 
 				wc, err = appIf.Watch(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
 				if err == nil {
 					for {
-						var appEvent *v1alpha1.ApplicationWatchEvent
+						var appEvent *argoappv1.ApplicationWatchEvent
 						appEvent, err = wc.Recv()
 						if err != nil {
 							break

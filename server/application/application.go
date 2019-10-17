@@ -31,15 +31,14 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/utils/pointer"
 
+	appv1 "github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/engine/pkg/client/clientset/versioned"
 	engineargo "github.com/argoproj/argo-cd/engine/util/argo"
 	"github.com/argoproj/argo-cd/engine/util/diff"
 	"github.com/argoproj/argo-cd/engine/util/git"
 	"github.com/argoproj/argo-cd/engine/util/kube"
 	"github.com/argoproj/argo-cd/engine/util/rbac"
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util/argo"
@@ -789,7 +788,7 @@ func (s *Server) ResourceTree(ctx context.Context, q *application.ResourcesQuery
 	return s.getAppResources(ctx, a)
 }
 
-func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMetadataQuery) (*v1alpha1.RevisionMetadata, error) {
+func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMetadataQuery) (*appv1.RevisionMetadata, error) {
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(q.GetName(), metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -1203,12 +1202,12 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 	return &application.ApplicationResponse{}, nil
 }
 
-func (s *Server) plugins() ([]*v1alpha1.ConfigManagementPlugin, error) {
+func (s *Server) plugins() ([]*appv1.ConfigManagementPlugin, error) {
 	plugins, err := s.settingsMgr.GetConfigManagementPlugins()
 	if err != nil {
 		return nil, err
 	}
-	tools := make([]*v1alpha1.ConfigManagementPlugin, len(plugins))
+	tools := make([]*appv1.ConfigManagementPlugin, len(plugins))
 	for i, plugin := range plugins {
 		tools[i] = &plugin
 	}
@@ -1247,7 +1246,7 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 	return res, nil
 }
 
-func convertSyncWindows(w *v1alpha1.SyncWindows) []*application.ApplicationSyncWindow {
+func convertSyncWindows(w *appv1.SyncWindows) []*application.ApplicationSyncWindow {
 	if w != nil {
 		var windows []*application.ApplicationSyncWindow
 		for _, w := range *w {

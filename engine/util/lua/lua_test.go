@@ -11,7 +11,7 @@ import (
 	lua "github.com/yuin/gopher-lua"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	appv1 "github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
 )
 
 const objJSON = `

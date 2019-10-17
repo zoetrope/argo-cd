@@ -14,11 +14,11 @@ import (
 
 	"crypto/x509"
 
+	appsv1 "github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
 	certutil "github.com/argoproj/argo-cd/engine/util/cert"
 	"github.com/argoproj/argo-cd/engine/util/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	certificatepkg "github.com/argoproj/argo-cd/pkg/apiclient/certificate"
-	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
 // NewCertCommand returns a new instance of an `argocd repo` command

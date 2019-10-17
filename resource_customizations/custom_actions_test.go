@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
+	appsv1 "github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/engine/util/diff"
-	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
 type testNormalizer struct{}

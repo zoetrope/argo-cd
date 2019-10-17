@@ -27,7 +27,7 @@ go build -i -o dist/protoc-gen-gogo ./vendor/k8s.io/code-generator/cmd/go-to-pro
 # --apimachinery-packages= option so that go-to-protobuf can locate the types, but prefixed with a
 # '-' so that go-to-protobuf will not generate .proto files for it.
 PACKAGES=(
-    github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1
+    github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1
 )
 APIMACHINERY_PKGS=(
     +k8s.io/apimachinery/pkg/util/intstr
@@ -117,4 +117,4 @@ clean_swagger() {
 collect_swagger server 35
 clean_swagger server
 clean_swagger reposerver
-clean_swagger controller
+

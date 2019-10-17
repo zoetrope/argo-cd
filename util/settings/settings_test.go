@@ -7,7 +7,7 @@ import (
 	"github.com/argoproj/argo-cd/engine/resource"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
 
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"

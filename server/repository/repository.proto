@@ -9,7 +9,7 @@ package repository;
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 import "k8s.io/api/core/v1/generated.proto";
-import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.proto";
+import "github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1/generated.proto";
 import "github.com/argoproj/argo-cd/reposerver/repository/repository.proto";
 
 // RepoAppsQuery is a query for Repository apps
@@ -27,7 +27,7 @@ message AppInfo {
 
 // RepoAppDetailsQuery contains query information for app details request
 message RepoAppDetailsQuery {
-	github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSource source = 1;
+	github.com.argoproj.argo_cd.engine.pkg.apis.application.v1alpha1.ApplicationSource source = 1;
 }
 
 // RepoAppsResponse contains applications of specified repository
@@ -65,12 +65,12 @@ message RepoAccessQuery {
 message RepoResponse {}
 
 message RepoCreateRequest {
-    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
+    github.com.argoproj.argo_cd.engine.pkg.apis.application.v1alpha1.Repository repo = 1;
     bool upsert = 2;
 }
 
 message RepoUpdateRequest {
-    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
+    github.com.argoproj.argo_cd.engine.pkg.apis.application.v1alpha1.Repository repo = 1;
 }
 
 
@@ -78,7 +78,7 @@ message RepoUpdateRequest {
 service RepositoryService {
 
 	// List returns list of repos
-	rpc List(RepoQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RepositoryList) {
+	rpc List(RepoQuery) returns (github.com.argoproj.argo_cd.engine.pkg.apis.application.v1alpha1.RepositoryList) {
 		option (google.api.http).get = "/api/v1/repositories";
 	}
 
@@ -100,7 +100,7 @@ service RepositoryService {
 	}
 
 	// Create creates a repo
-	rpc Create(RepoCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
+	rpc Create(RepoCreateRequest) returns (github.com.argoproj.argo_cd.engine.pkg.apis.application.v1alpha1.Repository) {
 		option (google.api.http) = {
 			post: "/api/v1/repositories"
 			body: "repo"
@@ -108,7 +108,7 @@ service RepositoryService {
 	}
 	
 	// Update updates a repo
-	rpc Update(RepoUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
+	rpc Update(RepoUpdateRequest) returns (github.com.argoproj.argo_cd.engine.pkg.apis.application.v1alpha1.Repository) {
 		option (google.api.http) = {
 			put: "/api/v1/repositories/{repo.repo}"
 			body: "repo"

@@ -10,10 +10,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/labels"
 
+	argoappv1 "github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
+	applister "github.com/argoproj/argo-cd/engine/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/engine/util/git"
 	"github.com/argoproj/argo-cd/engine/util/healthz"
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	applister "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 )
 
 type MetricsServer struct {

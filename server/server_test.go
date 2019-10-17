@@ -18,11 +18,11 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	enginecommon "github.com/argoproj/argo-cd/engine/common"
+	"github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
+	apps "github.com/argoproj/argo-cd/engine/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/engine/util/rbac"
 	"github.com/argoproj/argo-cd/pkg/apiclient"
 	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	apps "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util/assets"

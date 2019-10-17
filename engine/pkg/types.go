@@ -7,13 +7,14 @@ import (
 
 	"k8s.io/apimachinery/pkg/watch"
 
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	appv1 "github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
 )
 
 // The GitOps engine API is represented by two interfaces ReconciliationSettings, CredentialsStore and settings if the Application object.
 
 type Engine interface {
 	Run(ctx context.Context, statusProcessors int, operationProcessors int)
+	RefreshApps() error
 }
 
 // ReconciliationSettings provides set of methods which expose manifest generation and diffing settings.

@@ -21,9 +21,9 @@ import (
 	"k8s.io/kubernetes/pkg/kubectl/scheme"
 
 	hookutil "github.com/argoproj/argo-cd/engine/hook"
+	appv1 "github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/engine/resource/ignore"
 	"github.com/argoproj/argo-cd/engine/util/kube"
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
 // SetApplicationHealth updates the health statuses of all resources performed in the comparison

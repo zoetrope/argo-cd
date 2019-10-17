@@ -10,9 +10,9 @@ VERSION="v1alpha1"
 
 go run ${CODEGEN_PKG}/cmd/openapi-gen/openapi-gen.go \
   --go-header-file ${PROJECT_ROOT}/hack/custom-boilerplate.go.txt \
-  --input-dirs github.com/argoproj/argo-cd/pkg/apis/application/${VERSION} \
-  --output-package github.com/argoproj/argo-cd/pkg/apis/application/${VERSION} \
-  --report-filename pkg/apis/api-rules/violation_exceptions.list \
+  --input-dirs github.com/argoproj/argo-cd/engine/pkg/apis/application/${VERSION} \
+  --output-package github.com/argoproj/argo-cd/engine/pkg/apis/application/${VERSION} \
+  --report-filename engine/pkg/apis/api-rules/violation_exceptions.list \
   $@
 
 go run ./hack/gen-crd-spec/main.go

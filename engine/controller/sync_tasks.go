@@ -3,7 +3,7 @@ package controller
 import (
 	"strings"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
 )
 
 // kindOrder represents the correct order of Kubernetes resources within a manifest

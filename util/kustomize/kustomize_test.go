@@ -10,8 +10,8 @@ import (
 	"github.com/argoproj/pkg/exec"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/engine/util/git"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
 const kustomization1 = "kustomization_yaml"

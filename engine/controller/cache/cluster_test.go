@@ -21,10 +21,10 @@ import (
 	"k8s.io/client-go/dynamic/fake"
 
 	enginecommon "github.com/argoproj/argo-cd/engine/common"
+	appv1 "github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/engine/util/errors"
 	"github.com/argoproj/argo-cd/engine/util/kube"
 	"github.com/argoproj/argo-cd/engine/util/kube/kubetest"
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
 func strToUnstructured(jsonStr string) *unstructured.Unstructured {

@@ -10,8 +10,8 @@ import (
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	appv1 "github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/engine/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/util/assets"
 )
 
