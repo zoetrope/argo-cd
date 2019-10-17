@@ -31,7 +31,6 @@ import (
 	"github.com/argoproj/argo-cd/engine/util/cert"
 	"github.com/argoproj/argo-cd/engine/util/git"
 	"github.com/argoproj/argo-cd/engine/util/helm"
-	"github.com/argoproj/argo-cd/engine/util/rbac"
 )
 
 // Application is a definition of Application resource.
@@ -1233,10 +1232,6 @@ func (p *AppProject) ValidateProject() error {
 			existingWindows[window.Kind+window.Schedule+window.Duration] = true
 		}
 	}
-
-	if err := p.validatePolicySyntax(); err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -1307,15 +1302,6 @@ func validateGroupName(name string) error {
 	}
 	if invalidChars.MatchString(name) {
 		return status.Errorf(codes.InvalidArgument, "group '%s' contains invalid characters", name)
-	}
-	return nil
-}
-
-// validatePolicySyntax verifies policy syntax is accepted by casbin
-func (p *AppProject) validatePolicySyntax() error {
-	err := rbac.ValidatePolicy(p.ProjectPoliciesString())
-	if err != nil {
-		return status.Errorf(codes.InvalidArgument, "policy syntax error: %s", err.Error())
 	}
 	return nil
 }

@@ -580,6 +580,53 @@ p, role:admin, projects, update, *, allow`)
 	})
 }
 
+// TestInvalidPolicyRules checks various errors in policy rules
+func TestAppProject_InvalidPolicyRules(t *testing.T) {
+	p := v1alpha1.AppProject{
+		ObjectMeta: v1.ObjectMeta{Name: "my-proj"},
+		Spec:       v1alpha1.AppProjectSpec{Roles: []v1alpha1.ProjectRole{{Name: "my-role"}}},
+	}
+	type badPolicy struct {
+		policy string
+		errmsg string
+	}
+	badPolicies := []badPolicy{
+		// should have spaces
+		{"p,proj:my-proj:my-role,applications,get,my-proj/*,allow", "syntax"},
+		// incorrect form
+		{"g, proj:my-proj:my-role, applications, get, my-proj/*, allow", "must be of the form: 'p, sub, res, act, obj, eft'"},
+		{"p, not, enough, parts", "must be of the form: 'p, sub, res, act, obj, eft'"},
+		{"p, has, too, many, parts, to, split", "must be of the form: 'p, sub, res, act, obj, eft'"},
+		// invalid subject
+		{"p, , applications, get, my-proj/*, allow", "policy subject must be: 'proj:my-proj:my-role'"},
+		{"p, proj:my-proj, applications, get, my-proj/*, allow", "policy subject must be: 'proj:my-proj:my-role'"},
+		{"p, proj:my-proj:, applications, get, my-proj/*, allow", "policy subject must be: 'proj:my-proj:my-role'"},
+		{"p, ::, applications, get, my-proj/*, allow", "policy subject must be: 'proj:my-proj:my-role'"},
+		{"p, proj:different-my-proj:my-role, applications, get, my-proj/*, allow", "policy subject must be: 'proj:my-proj:my-role'"},
+		// invalid resource
+		{"p, proj:my-proj:my-role, , get, my-proj/*, allow", "resource must be: 'applications'"},
+		{"p, proj:my-proj:my-role, applicationz, get, my-proj/*, allow", "resource must be: 'applications'"},
+		{"p, proj:my-proj:my-role, projects, get, my-proj, allow", "resource must be: 'applications'"},
+		// invalid action
+		{"p, proj:my-proj:my-role, applications, , my-proj/*, allow", "invalid action"},
+		{"p, proj:my-proj:my-role, applications, foo, my-proj/*, allow", "invalid action"},
+		// invalid object
+		{"p, proj:my-proj:my-role, applications, get, my-proj/, allow", "object must be of form"},
+		{"p, proj:my-proj:my-role, applications, get, /, allow", "object must be of form"},
+		{"p, proj:my-proj:my-role, applications, get, different-my-proj/*, allow", "object must be of form"},
+		// invalid effect
+		{"p, proj:my-proj:my-role, applications, get, my-proj/*, ", "effect must be: 'allow' or 'deny'"},
+		{"p, proj:my-proj:my-role, applications, get, my-proj/*, foo", "effect must be: 'allow' or 'deny'"},
+	}
+	for _, bad := range badPolicies {
+		p.Spec.Roles[0].Policies = []string{bad.policy}
+		err := validProject(&p)
+		if assert.Error(t, err) {
+			assert.Contains(t, err.Error(), bad.errmsg)
+		}
+	}
+}
+
 func newEnforcer(kubeclientset *fake.Clientset) *rbac.Enforcer {
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
 	_ = enforcer.SetBuiltinPolicy(assets.BuiltinPolicyCSV)

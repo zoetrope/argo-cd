@@ -57,7 +57,7 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 	if err != nil {
 		return nil, err
 	}
-	err = prj.ValidateProject()
+	err = validProject(prj)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +106,7 @@ func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 	if err != nil {
 		return nil, err
 	}
-	err = prj.ValidateProject()
+	err = validProject(prj)
 	if err != nil {
 		return nil, err
 	}
@@ -137,13 +137,25 @@ func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 	return &project.EmptyResponse{}, nil
 }
 
+func validProject(p *v1alpha1.AppProject) error {
+	err := p.ValidateProject()
+	if err != nil {
+		return err
+	}
+	err = rbac.ValidatePolicy(p.ProjectPoliciesString())
+	if err != nil {
+		return status.Errorf(codes.InvalidArgument, "policy syntax error: %s", err.Error())
+	}
+	return nil
+}
+
 // Create a new project.
 func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*v1alpha1.AppProject, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionCreate, q.Project.Name); err != nil {
 		return nil, err
 	}
 	q.Project.NormalizePolicies()
-	err := q.Project.ValidateProject()
+	err := validProject(q.Project)
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +214,7 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 		return nil, err
 	}
 	q.Project.NormalizePolicies()
-	err := q.Project.ValidateProject()
+	err := validProject(q.Project)
 	if err != nil {
 		return nil, err
 	}
