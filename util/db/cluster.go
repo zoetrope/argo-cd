@@ -8,8 +8,9 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/argoproj/argo-cd/engine/pkg"
+
 	argocommon "github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/engine"
 	"github.com/argoproj/argo-cd/engine/common"
 
 	"golang.org/x/net/context"
@@ -103,7 +104,7 @@ func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 }
 
 // WatchClusters allow watching for cluster events
-func (db *db) WatchClusters(ctx context.Context, callback func(*engine.ClusterEvent)) error {
+func (db *db) WatchClusters(ctx context.Context, callback func(*pkg.ClusterEvent)) error {
 	listOpts := metav1.ListOptions{}
 	labelSelector := labels.NewSelector()
 	req, err := labels.NewRequirement(argocommon.LabelKeySecretType, selection.Equals, []string{argocommon.LabelValueSecretTypeCluster})
@@ -126,7 +127,7 @@ func (db *db) WatchClusters(ctx context.Context, callback func(*engine.ClusterEv
 	done := make(chan bool)
 
 	// trigger callback with event for local cluster since it always considered added
-	callback(&engine.ClusterEvent{Type: watch.Added, Cluster: localCls})
+	callback(&pkg.ClusterEvent{Type: watch.Added, Cluster: localCls})
 
 	go func() {
 		for next := range w.ResultChan() {
@@ -150,7 +151,7 @@ func (db *db) WatchClusters(ctx context.Context, callback func(*engine.ClusterEv
 				}
 			}
 
-			callback(&engine.ClusterEvent{
+			callback(&pkg.ClusterEvent{
 				Type:    next.Type,
 				Cluster: cluster,
 			})

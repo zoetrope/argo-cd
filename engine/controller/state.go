@@ -6,6 +6,11 @@ import (
 	"fmt"
 	"time"
 
+	controllercache "github.com/argoproj/argo-cd/engine/controller/cache"
+	"github.com/argoproj/argo-cd/engine/controller/metrics"
+
+	"github.com/argoproj/argo-cd/engine/pkg"
+
 	"github.com/argoproj/argo-cd/engine/util/lua"
 
 	"github.com/argoproj/argo-cd/engine/util/misc"
@@ -19,9 +24,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/cache"
 
-	statecache "github.com/argoproj/argo-cd/controller/cache"
-	"github.com/argoproj/argo-cd/controller/metrics"
-	"github.com/argoproj/argo-cd/engine"
 	"github.com/argoproj/argo-cd/engine/common"
 	hookutil "github.com/argoproj/argo-cd/engine/hook"
 	"github.com/argoproj/argo-cd/engine/resource"
@@ -78,18 +80,18 @@ type comparisonResult struct {
 // appStateManager allows to compare applications to git
 type appStateManager struct {
 	metricsServer  *metrics.MetricsServer
-	db             engine.CredentialsStore
-	settingsMgr    engine.ReconciliationSettings
+	db             pkg.CredentialsStore
+	settingsMgr    pkg.ReconciliationSettings
 	appclientset   appclientset.Interface
 	projInformer   cache.SharedIndexInformer
 	kubectl        kubeutil.Kubectl
-	repoClientset  engine.ManifestGenerator
-	liveStateCache statecache.LiveStateCache
+	repoClientset  pkg.ManifestGenerator
+	liveStateCache controllercache.LiveStateCache
 	namespace      string
 	luaVMFactory   func(map[string]v1alpha1.ResourceOverride) *lua.VM
 }
 
-func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache bool) ([]*unstructured.Unstructured, []*unstructured.Unstructured, *engine.ManifestResponse, error) {
+func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache bool) ([]*unstructured.Unstructured, []*unstructured.Unstructured, *pkg.ManifestResponse, error) {
 	helmRepos, err := m.db.ListHelmRepositories(context.Background())
 	if err != nil {
 		return nil, nil, nil, err
@@ -125,7 +127,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	manifestInfo, err := m.repoClientset.Generate(context.Background(), repo, revision, &source, &engine.ManifestGenerationSettings{
+	manifestInfo, err := m.repoClientset.Generate(context.Background(), repo, revision, &source, &pkg.ManifestGenerationSettings{
 		Repos:         helmRepos,
 		NoCache:       noCache,
 		AppLabelKey:   appLabelKey,
@@ -284,7 +286,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 
 	var targetObjs []*unstructured.Unstructured
 	var hooks []*unstructured.Unstructured
-	var manifestInfo *engine.ManifestResponse
+	var manifestInfo *pkg.ManifestResponse
 
 	if len(localManifests) == 0 {
 		targetObjs, hooks, manifestInfo, err = m.getRepoObjs(app, source, appLabelKey, revision, noCache)
@@ -507,13 +509,13 @@ func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revi
 
 // NewAppStateManager creates new instance of Ksonnet app comparator
 func NewAppStateManager(
-	db engine.CredentialsStore,
+	db pkg.CredentialsStore,
 	appclientset appclientset.Interface,
-	repoClientset engine.ManifestGenerator,
+	repoClientset pkg.ManifestGenerator,
 	namespace string,
 	kubectl kubeutil.Kubectl,
-	settingsMgr engine.ReconciliationSettings,
-	liveStateCache statecache.LiveStateCache,
+	settingsMgr pkg.ReconciliationSettings,
+	liveStateCache controllercache.LiveStateCache,
 	projInformer cache.SharedIndexInformer,
 	metricsServer *metrics.MetricsServer,
 	luaVMFactory func(map[string]v1alpha1.ResourceOverride) *lua.VM,

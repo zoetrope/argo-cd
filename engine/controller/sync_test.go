@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/argoproj/argo-cd/engine/pkg"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -17,7 +19,6 @@ import (
 	"k8s.io/client-go/rest"
 	testcore "k8s.io/client-go/testing"
 
-	"github.com/argoproj/argo-cd/engine"
 	"github.com/argoproj/argo-cd/engine/common"
 	"github.com/argoproj/argo-cd/engine/util/kube"
 	"github.com/argoproj/argo-cd/engine/util/kube/kubetest"
@@ -457,7 +458,7 @@ func TestPersistRevisionHistory(t *testing.T) {
 	}
 	data := fakeData{
 		apps: []runtime.Object{app, defaultProject},
-		manifestResponse: &engine.ManifestResponse{
+		manifestResponse: &pkg.ManifestResponse{
 			Manifests: []string{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
@@ -494,7 +495,7 @@ func TestPersistRevisionHistoryRollback(t *testing.T) {
 	}
 	data := fakeData{
 		apps: []runtime.Object{app, defaultProject},
-		manifestResponse: &engine.ManifestResponse{
+		manifestResponse: &pkg.ManifestResponse{
 			Manifests: []string{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,

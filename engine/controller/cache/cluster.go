@@ -9,13 +9,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine/controller/metrics"
+
 	"github.com/argoproj/argo-cd/engine/util/lua"
 
 	"github.com/argoproj/argo-cd/engine/util/misc"
 
 	"k8s.io/apimachinery/pkg/types"
-
-	"github.com/argoproj/argo-cd/controller/metrics"
 
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"

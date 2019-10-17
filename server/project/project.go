@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/argoproj/argo-cd/engine/pkg"
+
 	"github.com/argoproj/argo-cd/engine/util/misc"
 
 	"github.com/dgrijalva/jwt-go"
@@ -17,7 +19,6 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/argoproj/argo-cd/engine"
 	"github.com/argoproj/argo-cd/engine/common"
 	"github.com/argoproj/argo-cd/engine/util/rbac"
 	"github.com/argoproj/argo-cd/pkg/apiclient/project"
@@ -95,7 +96,7 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 	if err != nil {
 		return nil, err
 	}
-	s.logEvent(prj, ctx, engine.EventReasonResourceCreated, "created token")
+	s.logEvent(prj, ctx, pkg.EventReasonResourceCreated, "created token")
 	return &project.ProjectTokenResponse{Token: jwtToken}, nil
 
 }
@@ -133,7 +134,7 @@ func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 	if err != nil {
 		return nil, err
 	}
-	s.logEvent(prj, ctx, engine.EventReasonResourceDeleted, "deleted token")
+	s.logEvent(prj, ctx, pkg.EventReasonResourceDeleted, "deleted token")
 	return &project.EmptyResponse{}, nil
 }
 
@@ -179,7 +180,7 @@ func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*
 		}
 	}
 	if err == nil {
-		s.logEvent(res, ctx, engine.EventReasonResourceCreated, "created project")
+		s.logEvent(res, ctx, pkg.EventReasonResourceCreated, "created project")
 	}
 	return res, err
 }
@@ -292,7 +293,7 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 
 	res, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(q.Project)
 	if err == nil {
-		s.logEvent(res, ctx, engine.EventReasonResourceUpdated, "updated project")
+		s.logEvent(res, ctx, pkg.EventReasonResourceUpdated, "updated project")
 	}
 	return res, err
 }
@@ -324,7 +325,7 @@ func (s *Server) Delete(ctx context.Context, q *project.ProjectQuery) (*project.
 	}
 	err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Delete(q.Name, &metav1.DeleteOptions{})
 	if err == nil {
-		s.logEvent(p, ctx, engine.EventReasonResourceDeleted, "deleted project")
+		s.logEvent(p, ctx, pkg.EventReasonResourceDeleted, "deleted project")
 	}
 	return &project.EmptyResponse{}, err
 }
@@ -346,7 +347,7 @@ func (s *Server) ListEvents(ctx context.Context, q *project.ProjectQuery) (*v1.E
 }
 
 func (s *Server) logEvent(a *v1alpha1.AppProject, ctx context.Context, reason string, action string) {
-	eventInfo := engine.EventInfo{Type: v1.EventTypeNormal, Reason: reason}
+	eventInfo := pkg.EventInfo{Type: v1.EventTypeNormal, Reason: reason}
 	user := session.Username(ctx)
 	if user == "" {
 		user = "Unknown user"

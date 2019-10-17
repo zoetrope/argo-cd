@@ -5,6 +5,10 @@ import (
 	"reflect"
 	"sync"
 
+	"github.com/argoproj/argo-cd/engine/controller/metrics"
+
+	"github.com/argoproj/argo-cd/engine/pkg"
+
 	"github.com/argoproj/argo-cd/engine/util/lua"
 	"github.com/argoproj/argo-cd/engine/util/misc"
 
@@ -17,8 +21,6 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd/controller/metrics"
-	"github.com/argoproj/argo-cd/engine"
 	"github.com/argoproj/argo-cd/engine/util/kube"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
@@ -56,9 +58,9 @@ func GetTargetObjKey(a *appv1.Application, un *unstructured.Unstructured, isName
 	return key
 }
 func NewLiveStateCache(
-	db engine.CredentialsStore,
+	db pkg.CredentialsStore,
 	appInformer cache.SharedIndexInformer,
-	settingsMgr engine.ReconciliationSettings,
+	settingsMgr pkg.ReconciliationSettings,
 	kubectl kube.Kubectl,
 	metricsServer *metrics.MetricsServer,
 	onObjectUpdated ObjectUpdatedHandler,
@@ -79,13 +81,13 @@ func NewLiveStateCache(
 }
 
 type liveStateCache struct {
-	db                engine.CredentialsStore
+	db                pkg.CredentialsStore
 	clusters          map[string]*clusterInfo
 	lock              *sync.Mutex
 	appInformer       cache.SharedIndexInformer
 	onObjectUpdated   ObjectUpdatedHandler
 	kubectl           kube.Kubectl
-	settingsMgr       engine.ReconciliationSettings
+	settingsMgr       pkg.ReconciliationSettings
 	metricsServer     *metrics.MetricsServer
 	cacheSettingsLock *sync.Mutex
 	cacheSettings     *cacheSettings
@@ -253,7 +255,7 @@ func (c *liveStateCache) Run(ctx context.Context) error {
 	go c.watchSettings(ctx)
 
 	misc.RetryUntilSucceed(func() error {
-		clusterEventCallback := func(event *engine.ClusterEvent) {
+		clusterEventCallback := func(event *pkg.ClusterEvent) {
 			c.lock.Lock()
 			defer c.lock.Unlock()
 			if cluster, ok := c.clusters[event.Cluster.Server]; ok {

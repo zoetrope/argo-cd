@@ -11,6 +11,11 @@ import (
 	"sync"
 	"time"
 
+	argocache "github.com/argoproj/argo-cd/engine/controller/cache"
+	"github.com/argoproj/argo-cd/engine/controller/metrics"
+
+	"github.com/argoproj/argo-cd/engine/pkg"
+
 	"github.com/argoproj/argo-cd/engine/util/lua"
 
 	"github.com/argoproj/argo-cd/engine/common"
@@ -29,9 +34,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
-	statecache "github.com/argoproj/argo-cd/controller/cache"
-	"github.com/argoproj/argo-cd/controller/metrics"
-	"github.com/argoproj/argo-cd/engine"
 	"github.com/argoproj/argo-cd/engine/util/argo"
 	"github.com/argoproj/argo-cd/engine/util/diff"
 	"github.com/argoproj/argo-cd/engine/util/errors"
@@ -67,22 +69,22 @@ func (a CompareWith) Max(b CompareWith) CompareWith {
 
 // ApplicationController is the controller for application resources.
 type ApplicationController struct {
-	cache                     engine.AppStateCache
+	cache                     pkg.AppStateCache
 	namespace                 string
 	kubectl                   kube.Kubectl
 	applicationClientset      appclientset.Interface
-	auditLogger               engine.AuditLogger
+	auditLogger               pkg.AuditLogger
 	appRefreshQueue           workqueue.RateLimitingInterface
 	appOperationQueue         workqueue.RateLimitingInterface
 	appInformer               cache.SharedIndexInformer
 	appLister                 applisters.ApplicationLister
 	projInformer              cache.SharedIndexInformer
 	appStateManager           AppStateManager
-	stateCache                statecache.LiveStateCache
+	stateCache                argocache.LiveStateCache
 	statusRefreshTimeout      time.Duration
 	selfHealTimeout           time.Duration
-	db                        engine.CredentialsStore
-	settingsMgr               engine.ReconciliationSettings
+	db                        pkg.CredentialsStore
+	settingsMgr               pkg.ReconciliationSettings
 	refreshRequestedApps      map[string]CompareWith
 	refreshRequestedAppsMutex *sync.Mutex
 	metricsServer             *metrics.MetricsServer
@@ -97,12 +99,12 @@ type ApplicationControllerConfig struct {
 // NewApplicationController creates new instance of ApplicationController.
 func NewApplicationController(
 	namespace string,
-	settingsMgr engine.ReconciliationSettings,
-	db engine.CredentialsStore,
-	auditLogger engine.AuditLogger,
+	settingsMgr pkg.ReconciliationSettings,
+	db pkg.CredentialsStore,
+	auditLogger pkg.AuditLogger,
 	applicationClientset appclientset.Interface,
-	repoClientset engine.ManifestGenerator,
-	argoCache engine.AppStateCache,
+	repoClientset pkg.ManifestGenerator,
+	argoCache pkg.AppStateCache,
 	kubectl kube.Kubectl,
 	appResyncPeriod time.Duration,
 	selfHealTimeout time.Duration,
@@ -137,7 +139,7 @@ func NewApplicationController(
 	projInformer := v1alpha1.NewAppProjectInformer(applicationClientset, namespace, appResyncPeriod, cache.Indexers{})
 	metricsAddr := fmt.Sprintf("0.0.0.0:%d", metricsPort)
 	ctrl.metricsServer = metrics.NewMetricsServer(metricsAddr, appLister, healthCheck)
-	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, kubectl, ctrl.metricsServer, ctrl.handleObjectUpdated, luaVMFactory)
+	stateCache := argocache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, kubectl, ctrl.metricsServer, ctrl.handleObjectUpdated, luaVMFactory)
 	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer, luaVMFactory)
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister
@@ -465,7 +467,7 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 				Message: err.Error(),
 			})
 			message := fmt.Sprintf("Unable to delete application resources: %v", err.Error())
-			ctrl.auditLogger.LogAppEvent(app, engine.EventInfo{Reason: engine.EventReasonStatusRefreshed, Type: v1.EventTypeWarning}, message)
+			ctrl.auditLogger.LogAppEvent(app, pkg.EventInfo{Reason: pkg.EventReasonStatusRefreshed, Type: v1.EventTypeWarning}, message)
 		}
 	}
 	return
@@ -685,7 +687,7 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 		}
 		log.Infof("updated '%s' operation (phase: %s)", app.Name, state.Phase)
 		if state.Phase.Completed() {
-			eventInfo := engine.EventInfo{Reason: engine.EventReasonOperationCompleted}
+			eventInfo := pkg.EventInfo{Reason: pkg.EventReasonOperationCompleted}
 			var messages []string
 			if state.Operation.Sync != nil && len(state.Operation.Sync.Resources) > 0 {
 				messages = []string{"Partial sync operation"}
@@ -925,11 +927,11 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 	logCtx := log.WithFields(log.Fields{"application": orig.Name})
 	if orig.Status.Sync.Status != newStatus.Sync.Status {
 		message := fmt.Sprintf("Updated sync status: %s -> %s", orig.Status.Sync.Status, newStatus.Sync.Status)
-		ctrl.auditLogger.LogAppEvent(orig, engine.EventInfo{Reason: engine.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message)
+		ctrl.auditLogger.LogAppEvent(orig, pkg.EventInfo{Reason: pkg.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message)
 	}
 	if orig.Status.Health.Status != newStatus.Health.Status {
 		message := fmt.Sprintf("Updated health status: %s -> %s", orig.Status.Health.Status, newStatus.Health.Status)
-		ctrl.auditLogger.LogAppEvent(orig, engine.EventInfo{Reason: engine.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message)
+		ctrl.auditLogger.LogAppEvent(orig, pkg.EventInfo{Reason: pkg.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message)
 	}
 	var newAnnotations map[string]string
 	if orig.GetAnnotations() != nil {
@@ -1034,7 +1036,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: err.Error()}
 	}
 	message := fmt.Sprintf("Initiated automated sync to '%s'", desiredCommitSHA)
-	ctrl.auditLogger.LogAppEvent(app, engine.EventInfo{Reason: engine.EventReasonOperationStarted, Type: v1.EventTypeNormal}, message)
+	ctrl.auditLogger.LogAppEvent(app, pkg.EventInfo{Reason: pkg.EventReasonOperationStarted, Type: v1.EventTypeNormal}, message)
 	logCtx.Info(message)
 	return nil
 }

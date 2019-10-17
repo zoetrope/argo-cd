@@ -5,13 +5,14 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/argoproj/argo-cd/engine/pkg"
+
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/argoproj/argo-cd/engine"
 	"github.com/argoproj/argo-cd/engine/common"
 	"github.com/argoproj/argo-cd/engine/mocks"
 	"github.com/argoproj/argo-cd/engine/util/kube"
@@ -23,7 +24,7 @@ import (
 func TestCompareAppStateEmpty(t *testing.T) {
 	app := newFakeApp()
 	data := fakeData{
-		manifestResponse: &engine.ManifestResponse{
+		manifestResponse: &pkg.ManifestResponse{
 			Manifests: []string{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
@@ -46,7 +47,7 @@ func TestCompareAppStateMissing(t *testing.T) {
 	app := newFakeApp()
 	data := fakeData{
 		apps: []runtime.Object{app},
-		manifestResponse: &engine.ManifestResponse{
+		manifestResponse: &pkg.ManifestResponse{
 			Manifests: []string{string(test.PodManifest)},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
@@ -71,7 +72,7 @@ func TestCompareAppStateExtra(t *testing.T) {
 	app := newFakeApp()
 	key := kube.ResourceKey{Group: "", Kind: "Pod", Namespace: test.FakeDestNamespace, Name: app.Name}
 	data := fakeData{
-		manifestResponse: &engine.ManifestResponse{
+		manifestResponse: &pkg.ManifestResponse{
 			Manifests: []string{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
@@ -99,7 +100,7 @@ func TestCompareAppStateHook(t *testing.T) {
 	app := newFakeApp()
 	data := fakeData{
 		apps: []runtime.Object{app},
-		manifestResponse: &engine.ManifestResponse{
+		manifestResponse: &pkg.ManifestResponse{
 			Manifests: []string{string(podBytes)},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
@@ -124,7 +125,7 @@ func TestCompareAppStateCompareOptionIgnoreExtraneous(t *testing.T) {
 	app := newFakeApp()
 	data := fakeData{
 		apps: []runtime.Object{app},
-		manifestResponse: &engine.ManifestResponse{
+		manifestResponse: &pkg.ManifestResponse{
 			Manifests: []string{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
@@ -151,7 +152,7 @@ func TestCompareAppStateExtraHook(t *testing.T) {
 	app := newFakeApp()
 	key := kube.ResourceKey{Group: "", Kind: "Pod", Namespace: test.FakeDestNamespace, Name: app.Name}
 	data := fakeData{
-		manifestResponse: &engine.ManifestResponse{
+		manifestResponse: &pkg.ManifestResponse{
 			Manifests: []string{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
@@ -187,7 +188,7 @@ func TestCompareAppStateDuplicatedNamespacedResources(t *testing.T) {
 
 	app := newFakeApp()
 	data := fakeData{
-		manifestResponse: &engine.ManifestResponse{
+		manifestResponse: &pkg.ManifestResponse{
 			Manifests: []string{toJSON(t, obj1), toJSON(t, obj2), toJSON(t, obj3)},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
@@ -239,7 +240,7 @@ func TestSetHealth(t *testing.T) {
 	})
 	ctrl := newFakeController(&fakeData{
 		apps: []runtime.Object{app, &defaultProj},
-		manifestResponse: &engine.ManifestResponse{
+		manifestResponse: &pkg.ManifestResponse{
 			Manifests: []string{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
@@ -270,7 +271,7 @@ func TestSetHealthSelfReferencedApp(t *testing.T) {
 	})
 	ctrl := newFakeController(&fakeData{
 		apps: []runtime.Object{app, &defaultProj},
-		manifestResponse: &engine.ManifestResponse{
+		manifestResponse: &pkg.ManifestResponse{
 			Manifests: []string{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,

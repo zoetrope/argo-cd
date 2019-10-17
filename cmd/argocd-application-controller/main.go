@@ -6,6 +6,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine"
+
 	"github.com/argoproj/argo-cd/resource_customizations"
 
 	log "github.com/sirupsen/logrus"
@@ -19,11 +21,9 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/controller"
-	"github.com/argoproj/argo-cd/engine"
 	enginecommon "github.com/argoproj/argo-cd/engine/common"
+	"github.com/argoproj/argo-cd/engine/pkg"
 	"github.com/argoproj/argo-cd/engine/util/errors"
-	"github.com/argoproj/argo-cd/engine/util/kube"
 	util "github.com/argoproj/argo-cd/engine/util/misc"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
@@ -52,8 +52,8 @@ func (g *grpcManifestGenerator) Generate(
 	repo *v1alpha1.Repository,
 	revision string,
 	source *v1alpha1.ApplicationSource,
-	setting *engine.ManifestGenerationSettings,
-) (*engine.ManifestResponse, error) {
+	setting *pkg.ManifestGenerationSettings,
+) (*pkg.ManifestResponse, error) {
 	conn, repoClient, err := g.repoClientset.NewRepoServerClient()
 	if err != nil {
 		return nil, err
@@ -75,7 +75,7 @@ func (g *grpcManifestGenerator) Generate(
 	if err != nil {
 		return nil, err
 	}
-	return &engine.ManifestResponse{
+	return &pkg.ManifestResponse{
 		Namespace:  res.Namespace,
 		Server:     res.Server,
 		Revision:   res.Revision,
@@ -126,8 +126,7 @@ func newCommand() *cobra.Command {
 			errors.CheckError(err)
 
 			settingsMgr := settings.NewSettingsManager(ctx, kubeClient, namespace)
-			kubectl := kube.KubectlCmd{}
-			appController, err := controller.NewApplicationController(
+			engine, err := engine.NewEngine(
 				namespace,
 				settingsMgr,
 				db.NewDB(namespace, settingsMgr, kubeClient),
@@ -135,7 +134,6 @@ func newCommand() *cobra.Command {
 				appClient,
 				&grpcManifestGenerator{repoClientset: repoClientset},
 				cache,
-				kubectl,
 				resyncDuration,
 				time.Duration(selfHealTimeoutSeconds)*time.Second,
 				metricsPort,
@@ -150,7 +148,7 @@ func newCommand() *cobra.Command {
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")
 
-			go appController.Run(ctx, statusProcessors, operationProcessors)
+			go engine.Run(ctx, statusProcessors, operationProcessors)
 
 			// Wait forever
 			select {}

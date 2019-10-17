@@ -1,7 +1,7 @@
 package argo
 
 import (
-	"github.com/argoproj/argo-cd/engine"
+	"github.com/argoproj/argo-cd/engine/pkg"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,7 +20,7 @@ type AuditLogger struct {
 	ns        string
 }
 
-func (l *AuditLogger) logEvent(objMeta metav1.ObjectMeta, gvk schema.GroupVersionKind, info engine.EventInfo, message string, logFields map[string]string) {
+func (l *AuditLogger) logEvent(objMeta metav1.ObjectMeta, gvk schema.GroupVersionKind, info pkg.EventInfo, message string, logFields map[string]string) {
 	logCtx := log.WithFields(log.Fields{
 		"type":   info.Type,
 		"reason": info.Reason,
@@ -68,14 +68,14 @@ func (l *AuditLogger) logEvent(objMeta metav1.ObjectMeta, gvk schema.GroupVersio
 	}
 }
 
-func (l *AuditLogger) LogAppEvent(app *v1alpha1.Application, info engine.EventInfo, message string) {
+func (l *AuditLogger) LogAppEvent(app *v1alpha1.Application, info pkg.EventInfo, message string) {
 	l.logEvent(app.ObjectMeta, v1alpha1.ApplicationSchemaGroupVersionKind, info, message, map[string]string{
 		"dest-server":    app.Spec.Destination.Server,
 		"dest-namespace": app.Spec.Destination.Namespace,
 	})
 }
 
-func (l *AuditLogger) LogAppProjEvent(proj *v1alpha1.AppProject, info engine.EventInfo, message string) {
+func (l *AuditLogger) LogAppProjEvent(proj *v1alpha1.AppProject, info pkg.EventInfo, message string) {
 	l.logEvent(proj.ObjectMeta, v1alpha1.AppProjectSchemaGroupVersionKind, info, message, nil)
 }
 

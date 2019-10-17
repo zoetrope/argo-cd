@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine/pkg"
+
 	"github.com/argoproj/argo-cd/engine/util/misc"
 
 	"github.com/argoproj/argo-cd/resource_customizations"
@@ -29,7 +31,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/utils/pointer"
 
-	"github.com/argoproj/argo-cd/engine"
 	engineargo "github.com/argoproj/argo-cd/engine/util/argo"
 	"github.com/argoproj/argo-cd/engine/util/diff"
 	"github.com/argoproj/argo-cd/engine/util/git"
@@ -162,7 +163,7 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 	}
 
 	if err == nil {
-		s.logEvent(out, ctx, engine.EventReasonResourceCreated, "created application")
+		s.logEvent(out, ctx, pkg.EventReasonResourceCreated, "created application")
 	}
 	return out, err
 }
@@ -328,7 +329,7 @@ func (s *Server) Update(ctx context.Context, q *application.ApplicationUpdateReq
 	}
 	out, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(a)
 	if err == nil {
-		s.logEvent(a, ctx, engine.EventReasonResourceUpdated, "updated application")
+		s.logEvent(a, ctx, pkg.EventReasonResourceUpdated, "updated application")
 	}
 	return out, err
 }
@@ -356,7 +357,7 @@ func (s *Server) UpdateSpec(ctx context.Context, q *application.ApplicationUpdat
 		a.Spec = *normalizedSpec
 		_, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(a)
 		if err == nil {
-			s.logEvent(a, ctx, engine.EventReasonResourceUpdated, "updated application spec")
+			s.logEvent(a, ctx, pkg.EventReasonResourceUpdated, "updated application spec")
 			return normalizedSpec, nil
 		}
 		if !apierr.IsConflict(err) {
@@ -408,7 +409,7 @@ func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchReque
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("Patch type '%s' is not supported", q.PatchType))
 	}
 
-	s.logEvent(app, ctx, engine.EventReasonResourceUpdated, fmt.Sprintf("patched application %s/%s", app.Namespace, app.Name))
+	s.logEvent(app, ctx, pkg.EventReasonResourceUpdated, fmt.Sprintf("patched application %s/%s", app.Namespace, app.Name))
 
 	err = json.Unmarshal(patchApp, &app)
 	if err != nil {
@@ -473,7 +474,7 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 		return nil, err
 	}
 
-	s.logEvent(a, ctx, engine.EventReasonResourceDeleted, "deleted application")
+	s.logEvent(a, ctx, pkg.EventReasonResourceDeleted, "deleted application")
 	return &application.ApplicationResponse{}, nil
 }
 
@@ -741,7 +742,7 @@ func (s *Server) PatchResource(ctx context.Context, q *application.ApplicationRe
 	if err != nil {
 		return nil, err
 	}
-	s.logEvent(a, ctx, engine.EventReasonResourceUpdated, fmt.Sprintf("patched resource %s/%s '%s'", q.Group, q.Kind, q.ResourceName))
+	s.logEvent(a, ctx, pkg.EventReasonResourceUpdated, fmt.Sprintf("patched resource %s/%s '%s'", q.Group, q.Kind, q.ResourceName))
 	return &application.ApplicationResourceResponse{
 		Manifest: string(data),
 	}, nil
@@ -773,7 +774,7 @@ func (s *Server) DeleteResource(ctx context.Context, q *application.ApplicationR
 	if err != nil {
 		return nil, err
 	}
-	s.logEvent(a, ctx, engine.EventReasonResourceDeleted, fmt.Sprintf("deleted resource %s/%s '%s'", q.Group, q.Kind, q.ResourceName))
+	s.logEvent(a, ctx, pkg.EventReasonResourceDeleted, fmt.Sprintf("deleted resource %s/%s '%s'", q.Group, q.Kind, q.ResourceName))
 	return &application.ApplicationResponse{}, nil
 }
 
@@ -980,7 +981,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		if len(syncReq.Resources) > 0 {
 			partial = "partial "
 		}
-		s.logEvent(a, ctx, engine.EventReasonOperationStarted, fmt.Sprintf("initiated %ssync to %s", partial, displayRevision))
+		s.logEvent(a, ctx, pkg.EventReasonOperationStarted, fmt.Sprintf("initiated %ssync to %s", partial, displayRevision))
 	}
 	return a, err
 }
@@ -1029,7 +1030,7 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 	}
 	a, err = engineargo.SetAppOperation(appIf, *rollbackReq.Name, &op)
 	if err == nil {
-		s.logEvent(a, ctx, engine.EventReasonOperationStarted, fmt.Sprintf("initiated rollback to %d", rollbackReq.ID))
+		s.logEvent(a, ctx, pkg.EventReasonOperationStarted, fmt.Sprintf("initiated rollback to %d", rollbackReq.ID))
 	}
 	return a, err
 }
@@ -1088,13 +1089,13 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 		if err != nil {
 			return nil, err
 		}
-		s.logEvent(a, ctx, engine.EventReasonResourceUpdated, "terminated running operation")
+		s.logEvent(a, ctx, pkg.EventReasonResourceUpdated, "terminated running operation")
 	}
 	return nil, status.Errorf(codes.Internal, "Failed to terminate app. Too many conflicts")
 }
 
 func (s *Server) logEvent(a *appv1.Application, ctx context.Context, reason string, action string) {
-	eventInfo := engine.EventInfo{Type: v1.EventTypeNormal, Reason: reason}
+	eventInfo := pkg.EventInfo{Type: v1.EventTypeNormal, Reason: reason}
 	user := session.Username(ctx)
 	if user == "" {
 		user = "Unknown user"

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/argoproj/argo-cd/engine/pkg"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/sirupsen/logrus"
@@ -13,7 +15,6 @@ import (
 
 	"github.com/argoproj/argo-cd/engine/common"
 
-	"github.com/argoproj/argo-cd/engine"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -41,7 +42,7 @@ func GetAppProject(spec *v1alpha1.ApplicationSpec, projLister applisters.AppProj
 }
 
 // ValidatePermissions ensures that the referenced cluster has been added to Argo CD and the app source repo and destination namespace/cluster are permitted in app project
-func ValidatePermissions(ctx context.Context, spec *v1alpha1.ApplicationSpec, proj *v1alpha1.AppProject, db engine.CredentialsStore) ([]v1alpha1.ApplicationCondition, error) {
+func ValidatePermissions(ctx context.Context, spec *v1alpha1.ApplicationSpec, proj *v1alpha1.AppProject, db pkg.CredentialsStore) ([]v1alpha1.ApplicationCondition, error) {
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
 	if spec.Source.RepoURL == "" || (spec.Source.Path == "" && spec.Source.Chart == "") {
 		conditions = append(conditions, v1alpha1.ApplicationCondition{

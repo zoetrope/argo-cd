@@ -27,7 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/argoproj/argo-cd/controller"
+	"github.com/argoproj/argo-cd/engine/controller"
 	"github.com/argoproj/argo-cd/engine/hook"
 	"github.com/argoproj/argo-cd/engine/resource/ignore"
 	engineargo "github.com/argoproj/argo-cd/engine/util/argo"

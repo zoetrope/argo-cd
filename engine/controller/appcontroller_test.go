@@ -5,6 +5,10 @@ import (
 	"testing"
 	"time"
 
+	cachemocks "github.com/argoproj/argo-cd/engine/controller/cache/mocks"
+
+	"github.com/argoproj/argo-cd/engine/pkg"
+
 	"github.com/argoproj/argo-cd/engine/util/lua"
 
 	"github.com/argoproj/argo-cd/engine/common"
@@ -22,9 +26,6 @@ import (
 	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 
-	mockstatecache "github.com/argoproj/argo-cd/controller/cache/mocks"
-
-	"github.com/argoproj/argo-cd/engine"
 	"github.com/argoproj/argo-cd/engine/mocks"
 	"github.com/argoproj/argo-cd/engine/util/kube"
 	"github.com/argoproj/argo-cd/engine/util/kube/kubetest"
@@ -41,13 +42,13 @@ type namespacedResource struct {
 
 type fakeData struct {
 	apps                []runtime.Object
-	manifestResponse    *engine.ManifestResponse
+	manifestResponse    *pkg.ManifestResponse
 	managedLiveObjs     map[kube.ResourceKey]*unstructured.Unstructured
 	namespacedResources map[kube.ResourceKey]namespacedResource
 	settingsMockConfig  func(settingsMock *mocks.ReconciliationSettings)
 }
 
-func (fd *fakeData) Generate(ctx context.Context, repo *argoappv1.Repository, revision string, source *argoappv1.ApplicationSource, setting *engine.ManifestGenerationSettings) (*engine.ManifestResponse, error) {
+func (fd *fakeData) Generate(ctx context.Context, repo *argoappv1.Repository, revision string, source *argoappv1.ApplicationSource, setting *pkg.ManifestGenerationSettings) (*pkg.ManifestResponse, error) {
 	return fd.manifestResponse, nil
 }
 
@@ -105,7 +106,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 	defer cancelProj()
 	cancelApp := test.StartInformer(ctrl.appInformer)
 	defer cancelApp()
-	mockStateCache := mockstatecache.LiveStateCache{}
+	mockStateCache := cachemocks.LiveStateCache{}
 	ctrl.appStateManager.(*appStateManager).liveStateCache = &mockStateCache
 	ctrl.stateCache = &mockStateCache
 	mockStateCache.On("IsNamespaced", mock.Anything, mock.Anything).Return(true, nil)
@@ -410,7 +411,7 @@ func TestNormalizeApplication(t *testing.T) {
 	app.Spec.Source.Kustomize = &argoappv1.ApplicationSourceKustomize{NamePrefix: "foo-"}
 	data := fakeData{
 		apps: []runtime.Object{app, &defaultProj},
-		manifestResponse: &engine.ManifestResponse{
+		manifestResponse: &pkg.ManifestResponse{
 			Manifests: []string{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
