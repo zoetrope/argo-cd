@@ -25,7 +25,7 @@ import (
 	ssh2 "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 
-	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/engine/common"
 	certutil "github.com/argoproj/argo-cd/engine/util/cert"
 	argoconfig "github.com/argoproj/argo-cd/engine/util/config"
 )

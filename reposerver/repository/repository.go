@@ -25,7 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/engine/common"
 	"github.com/argoproj/argo-cd/engine/util/config"
 	"github.com/argoproj/argo-cd/engine/util/git"
 	"github.com/argoproj/argo-cd/engine/util/helm"

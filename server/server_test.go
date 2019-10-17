@@ -17,6 +17,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/common"
+	enginecommon "github.com/argoproj/argo-cd/engine/common"
 	"github.com/argoproj/argo-cd/engine/util/rbac"
 	"github.com/argoproj/argo-cd/pkg/apiclient"
 	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
@@ -187,7 +188,7 @@ func TestInitializingExistingDefaultProject(t *testing.T) {
 	secret := test.NewFakeSecret()
 	kubeclientset := fake.NewSimpleClientset(cm, secret)
 	defaultProj := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: common.DefaultAppProjectName, Namespace: test.FakeArgoCDNamespace},
+		ObjectMeta: metav1.ObjectMeta{Name: enginecommon.DefaultAppProjectName, Namespace: test.FakeArgoCDNamespace},
 		Spec:       v1alpha1.AppProjectSpec{},
 	}
 	appClientSet := apps.NewSimpleClientset(defaultProj)
@@ -201,10 +202,10 @@ func TestInitializingExistingDefaultProject(t *testing.T) {
 	argocd := NewServer(context.Background(), argoCDOpts)
 	assert.NotNil(t, argocd)
 
-	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(common.DefaultAppProjectName, metav1.GetOptions{})
+	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(enginecommon.DefaultAppProjectName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, proj)
-	assert.Equal(t, proj.Name, common.DefaultAppProjectName)
+	assert.Equal(t, proj.Name, enginecommon.DefaultAppProjectName)
 }
 
 func TestInitializingNotExistingDefaultProject(t *testing.T) {
@@ -222,10 +223,10 @@ func TestInitializingNotExistingDefaultProject(t *testing.T) {
 	argocd := NewServer(context.Background(), argoCDOpts)
 	assert.NotNil(t, argocd)
 
-	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(common.DefaultAppProjectName, metav1.GetOptions{})
+	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(enginecommon.DefaultAppProjectName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, proj)
-	assert.Equal(t, proj.Name, common.DefaultAppProjectName)
+	assert.Equal(t, proj.Name, enginecommon.DefaultAppProjectName)
 }
 
 func TestEnforceProjectGroups(t *testing.T) {

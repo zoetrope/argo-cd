@@ -15,7 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 
-	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/engine/common"
 	"github.com/argoproj/argo-cd/engine/util/git"
 	"github.com/argoproj/argo-cd/engine/util/helm"
 	"github.com/argoproj/argo-cd/engine/util/kube"

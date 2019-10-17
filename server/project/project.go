@@ -17,8 +17,8 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/engine"
+	"github.com/argoproj/argo-cd/engine/common"
 	"github.com/argoproj/argo-cd/engine/util/rbac"
 	"github.com/argoproj/argo-cd/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"

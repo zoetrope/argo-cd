@@ -17,10 +17,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd/common"
 	statecache "github.com/argoproj/argo-cd/controller/cache"
 	"github.com/argoproj/argo-cd/controller/metrics"
 	"github.com/argoproj/argo-cd/engine"
+	"github.com/argoproj/argo-cd/engine/common"
 	hookutil "github.com/argoproj/argo-cd/engine/hook"
 	"github.com/argoproj/argo-cd/engine/resource"
 	"github.com/argoproj/argo-cd/engine/resource/ignore"

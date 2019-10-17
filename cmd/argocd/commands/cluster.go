@@ -19,6 +19,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/common"
+	enginecommon "github.com/argoproj/argo-cd/engine/common"
 	"github.com/argoproj/argo-cd/engine/util/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	clusterpkg "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
@@ -96,7 +97,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			defer misc.Close(conn)
 			clst := NewCluster(args[0], conf, managerBearerToken, awsAuthConf)
 			if inCluster {
-				clst.Server = common.KubernetesInternalAPIServerAddr
+				clst.Server = enginecommon.KubernetesInternalAPIServerAddr
 			}
 			clstCreateReq := clusterpkg.ClusterCreateRequest{
 				Cluster: clst,

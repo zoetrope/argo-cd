@@ -25,7 +25,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
-	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/engine/common"
 )
 
 const (

@@ -18,7 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic/fake"
 
-	"github.com/argoproj/argo-cd/common"
+	enginecommon "github.com/argoproj/argo-cd/engine/common"
 	"github.com/argoproj/argo-cd/engine/util/errors"
 	"github.com/argoproj/argo-cd/engine/util/kube"
 	"github.com/argoproj/argo-cd/engine/util/kube/kubetest"
@@ -164,7 +164,7 @@ func newClusterExt(kubectl kube.Kubectl) *clusterInfo {
 		apisMeta:        make(map[schema.GroupKind]*apiMeta),
 		log:             log.WithField("cluster", "test"),
 		cacheSettingsSrc: func() *cacheSettings {
-			return &cacheSettings{AppInstanceLabelKey: common.LabelKeyAppInstance}
+			return &cacheSettings{AppInstanceLabelKey: enginecommon.LabelKeyAppInstance}
 		},
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"log"
 	"testing"
 
+	"github.com/argoproj/argo-cd/engine/common"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	apiv1 "k8s.io/api/core/v1"
@@ -13,8 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/rest"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-
-	"github.com/argoproj/argo-cd/common"
 )
 
 const depWithLabel = `

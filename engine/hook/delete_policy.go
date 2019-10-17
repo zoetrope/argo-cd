@@ -1,10 +1,10 @@
 package hook
 
 import (
+	"github.com/argoproj/argo-cd/engine/common"
 	"github.com/argoproj/argo-cd/engine/hook/helm"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/engine/resource"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )

@@ -45,6 +45,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/common"
+	enginecommon "github.com/argoproj/argo-cd/engine/common"
 	"github.com/argoproj/argo-cd/engine/util/errors"
 	"github.com/argoproj/argo-cd/engine/util/healthz"
 	jsonutil "github.com/argoproj/argo-cd/engine/util/json"
@@ -151,7 +152,7 @@ type ArgoCDServerOpts struct {
 // initializeDefaultProject creates the default project if it does not already exist
 func initializeDefaultProject(opts ArgoCDServerOpts) error {
 	defaultProj := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: common.DefaultAppProjectName, Namespace: opts.Namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: enginecommon.DefaultAppProjectName, Namespace: opts.Namespace},
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:              []string{"*"},
 			Destinations:             []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},

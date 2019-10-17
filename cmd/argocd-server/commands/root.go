@@ -9,6 +9,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/common"
+	enginecommon "github.com/argoproj/argo-cd/engine/common"
 	"github.com/argoproj/argo-cd/engine/util/errors"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
@@ -47,8 +48,8 @@ func NewCommand() *cobra.Command {
 
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
-			config.QPS = common.K8sClientConfigQPS
-			config.Burst = common.K8sClientConfigBurst
+			config.QPS = enginecommon.K8sClientConfigQPS
+			config.Burst = enginecommon.K8sClientConfigBurst
 
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)

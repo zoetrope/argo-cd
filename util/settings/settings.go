@@ -31,6 +31,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/common"
+	enginecommon "github.com/argoproj/argo-cd/engine/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/settings/oidc"
 	"github.com/argoproj/argo-cd/util/password"
@@ -285,7 +286,7 @@ func (mgr *SettingsManager) GetAppInstanceLabelKey() (string, error) {
 	}
 	label := argoCDCM.Data[settingsApplicationInstanceLabelKey]
 	if label == "" {
-		return common.LabelKeyAppInstance, nil
+		return enginecommon.LabelKeyAppInstance, nil
 	}
 	return label, nil
 }

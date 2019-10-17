@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine/common"
 	"github.com/argoproj/argo-cd/engine/resource"
 
 	"github.com/ghodss/yaml"
@@ -19,7 +20,6 @@ import (
 	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd/common"
 	mockstatecache "github.com/argoproj/argo-cd/controller/cache/mocks"
 
 	"github.com/argoproj/argo-cd/engine"
@@ -85,7 +85,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 		kubectl,
 		time.Minute,
 		time.Minute,
-		common.DefaultPortArgoCDMetrics,
+		8082,
 		0,
 		func() error {
 			return nil

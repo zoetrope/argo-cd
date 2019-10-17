@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine/common"
+
 	"github.com/robfig/cron"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -26,7 +28,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
 
-	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/engine/util/cert"
 	"github.com/argoproj/argo-cd/engine/util/git"
 	"github.com/argoproj/argo-cd/engine/util/helm"

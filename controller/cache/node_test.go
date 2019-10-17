@@ -3,7 +3,7 @@ package cache
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/engine/common"
 
 	"github.com/stretchr/testify/assert"
 )

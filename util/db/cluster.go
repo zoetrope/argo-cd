@@ -8,7 +8,9 @@ import (
 	"reflect"
 	"strings"
 
+	argocommon "github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/engine"
+	"github.com/argoproj/argo-cd/engine/common"
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -20,7 +22,6 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/watch"
 
-	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
@@ -33,7 +34,7 @@ var (
 
 func (db *db) listClusterSecrets() ([]*apiv1.Secret, error) {
 	labelSelector := labels.NewSelector()
-	req, err := labels.NewRequirement(common.LabelKeySecretType, selection.Equals, []string{common.LabelValueSecretTypeCluster})
+	req, err := labels.NewRequirement(argocommon.LabelKeySecretType, selection.Equals, []string{argocommon.LabelValueSecretTypeCluster})
 	if err != nil {
 		return nil, err
 	}
@@ -83,10 +84,10 @@ func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 		ObjectMeta: metav1.ObjectMeta{
 			Name: secName,
 			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+				argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
 			},
 			Annotations: map[string]string{
-				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+				argocommon.AnnotationKeyManagedBy: argocommon.AnnotationValueManagedByArgoCD,
 			},
 		},
 	}
@@ -105,7 +106,7 @@ func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 func (db *db) WatchClusters(ctx context.Context, callback func(*engine.ClusterEvent)) error {
 	listOpts := metav1.ListOptions{}
 	labelSelector := labels.NewSelector()
-	req, err := labels.NewRequirement(common.LabelKeySecretType, selection.Equals, []string{common.LabelValueSecretTypeCluster})
+	req, err := labels.NewRequirement(argocommon.LabelKeySecretType, selection.Equals, []string{argocommon.LabelValueSecretTypeCluster})
 	if err != nil {
 		return err
 	}
@@ -216,12 +217,12 @@ func (db *db) DeleteCluster(ctx context.Context, name string) error {
 		}
 	}
 
-	canDelete := secret.Annotations != nil && secret.Annotations[common.AnnotationKeyManagedBy] == common.AnnotationValueManagedByArgoCD
+	canDelete := secret.Annotations != nil && secret.Annotations[argocommon.AnnotationKeyManagedBy] == argocommon.AnnotationValueManagedByArgoCD
 
 	if canDelete {
 		err = db.kubeclientset.CoreV1().Secrets(db.ns).Delete(secret.Name, &metav1.DeleteOptions{})
 	} else {
-		delete(secret.Labels, common.LabelKeySecretType)
+		delete(secret.Labels, argocommon.LabelKeySecretType)
 		_, err = db.kubeclientset.CoreV1().Secrets(db.ns).Update(secret)
 	}
 	if err != nil {
