@@ -98,6 +98,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 				ResourceOverrides: overrides,
 			}
 		},
+		nil,
 	)
 	if err != nil {
 		panic(err)

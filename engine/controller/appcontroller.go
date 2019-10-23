@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine/util/settings"
+
 	"k8s.io/apimachinery/pkg/labels"
 
 	argocache "github.com/argoproj/argo-cd/engine/controller/cache"
@@ -91,6 +93,7 @@ type ApplicationController struct {
 	refreshRequestedAppsMutex *sync.Mutex
 	metricsServer             *metrics.MetricsServer
 	kubectlSemaphore          *semaphore.Weighted
+	callbacks                 pkg.Callbacks
 }
 
 type ApplicationControllerConfig struct {
@@ -114,7 +117,11 @@ func NewApplicationController(
 	kubectlParallelismLimit int64,
 	healthCheck func() error,
 	luaVMFactory func(map[string]appv1.ResourceOverride) *lua.VM,
+	callbacks pkg.Callbacks,
 ) (*ApplicationController, error) {
+	if callbacks == nil {
+		callbacks = settings.NewNoOpCallbacks()
+	}
 	ctrl := ApplicationController{
 		cache:                     argoCache,
 		namespace:                 namespace,
@@ -129,6 +136,7 @@ func NewApplicationController(
 		auditLogger:               auditLogger,
 		settingsMgr:               settingsMgr,
 		selfHealTimeout:           selfHealTimeout,
+		callbacks:                 callbacks,
 	}
 	if kubectlParallelismLimit > 0 {
 		ctrl.kubectlSemaphore = semaphore.NewWeighted(kubectlParallelismLimit)
@@ -649,6 +657,13 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 
 	ctrl.setOperationState(app, state)
 	if state.Phase.Completed() {
+		if state != nil {
+			err := ctrl.callbacks.OnSyncCompleted(app.Name, *state)
+			if err != nil {
+				logCtx.Warnf("Fails to run sync completed callback: %v", err)
+			}
+		}
+
 		// if we just completed an operation, force a refresh so that UI will report up-to-date
 		// sync/health information
 		if key, err := cache.MetaNamespaceKeyFunc(app); err == nil {

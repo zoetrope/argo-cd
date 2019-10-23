@@ -17,6 +17,10 @@ type Engine interface {
 	RefreshApps() error
 }
 
+type Callbacks interface {
+	OnSyncCompleted(appName string, state appv1.OperationState) error
+}
+
 // ReconciliationSettings provides set of methods which expose manifest generation and diffing settings.
 type ReconciliationSettings interface {
 	GetAppInstanceLabelKey() (string, error)

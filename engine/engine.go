@@ -26,6 +26,7 @@ func NewEngine(
 	kubectlParallelismLimit int64,
 	healthCheck func() error,
 	luaVMFactory func(map[string]appv1.ResourceOverride) *lua.VM,
+	callbacks pkg.Callbacks,
 ) (pkg.Engine, error) {
 	return controller.NewApplicationController(
 		namespace,
@@ -41,5 +42,6 @@ func NewEngine(
 		metricsPort,
 		kubectlParallelismLimit,
 		healthCheck,
-		luaVMFactory)
+		luaVMFactory,
+		callbacks)
 }
