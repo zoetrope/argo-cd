@@ -74,7 +74,7 @@ func (s syncTasks) Less(i, j int) bool {
 	tA := s[i]
 	tB := s[j]
 
-	d := syncPhaseOrder[tA.phase] - syncPhaseOrder[tB.phase]
+	d := syncPhaseOrder[tA.Phase] - syncPhaseOrder[tB.Phase]
 	if d != 0 {
 		return d < 0
 	}
@@ -154,7 +154,7 @@ func (s syncTasks) String() string {
 
 func (s syncTasks) phase() v1alpha1.SyncPhase {
 	if len(s) > 0 {
-		return s[0].phase
+		return s[0].Phase
 	}
 	return ""
 }
@@ -168,7 +168,7 @@ func (s syncTasks) wave() int {
 
 func (s syncTasks) lastPhase() v1alpha1.SyncPhase {
 	if len(s) > 0 {
-		return s[len(s)-1].phase
+		return s[len(s)-1].Phase
 	}
 	return ""
 }

@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/argoproj/argo-cd/engine/util/settings"
+
 	"github.com/argoproj/argo-cd/engine/pkg"
 
 	log "github.com/sirupsen/logrus"
@@ -70,9 +72,10 @@ func newTestSyncCtx(resources ...*v1.APIResourceList) *syncContext {
 				},
 			},
 		},
-		opState: &OperationState{},
-		disco:   fakeDisco,
-		log:     log.WithFields(log.Fields{"application": "fake-app"}),
+		opState:   &OperationState{},
+		disco:     fakeDisco,
+		log:       log.WithFields(log.Fields{"application": "fake-app"}),
+		callbacks: settings.NewNoOpCallbacks(),
 	}
 	sc.kubectl = &kubetest.MockKubectlCmd{}
 	return &sc
@@ -648,6 +651,7 @@ func Test_syncContext_isSelectiveSync(t *testing.T) {
 			sc := &syncContext{
 				compareResult: tt.fields.compareResult,
 				syncResources: tt.fields.syncResources,
+				callbacks:     settings.NewNoOpCallbacks(),
 			}
 			if got := sc.isSelectiveSync(); got != tt.want {
 				t.Errorf("syncContext.isSelectiveSync() = %v, want %v", got, tt.want)
@@ -682,6 +686,7 @@ func Test_syncContext_liveObj(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			sc := &syncContext{
 				compareResult: tt.fields.compareResult,
+				callbacks:     settings.NewNoOpCallbacks(),
 			}
 			if got := sc.liveObj(tt.args.obj); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("syncContext.liveObj() = %v, want %v", got, tt.want)

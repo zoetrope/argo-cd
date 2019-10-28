@@ -88,6 +88,7 @@ type appStateManager struct {
 	liveStateCache controllercache.LiveStateCache
 	namespace      string
 	luaVMFactory   func(map[string]appv1.ResourceOverride) *lua.VM
+	callbacks      pkg.Callbacks
 }
 
 func (m *appStateManager) getRepoObjs(app *appv1.Application, source appv1.ApplicationSource, appLabelKey, revision string, noCache bool) ([]*unstructured.Unstructured, []*unstructured.Unstructured, *pkg.ManifestResponse, error) {
@@ -518,6 +519,7 @@ func NewAppStateManager(
 	projInformer cache.SharedIndexInformer,
 	metricsServer *metrics.MetricsServer,
 	luaVMFactory func(map[string]appv1.ResourceOverride) *lua.VM,
+	callbacks pkg.Callbacks,
 ) AppStateManager {
 	return &appStateManager{
 		liveStateCache: liveStateCache,
@@ -530,5 +532,6 @@ func NewAppStateManager(
 		projInformer:   projInformer,
 		metricsServer:  metricsServer,
 		luaVMFactory:   luaVMFactory,
+		callbacks:      callbacks,
 	}
 }

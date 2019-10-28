@@ -8,6 +8,10 @@ import (
 type noop_callbacks struct {
 }
 
+func (n noop_callbacks) OnBeforeSync(appName string, tasks []pkg.SyncTaskInfo) ([]pkg.SyncTaskInfo, error) {
+	return tasks, nil
+}
+
 func (n noop_callbacks) OnSyncCompleted(appName string, state v1alpha1.OperationState) error {
 	return nil
 }

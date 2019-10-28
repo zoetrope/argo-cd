@@ -3,6 +3,8 @@ package controller
 import (
 	"fmt"
 
+	"github.com/argoproj/argo-cd/engine/pkg"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -15,9 +17,7 @@ import (
 // indicates the live object needs to be pruned. A liveObj of nil indicates the object has yet to
 // be deployed
 type syncTask struct {
-	phase          v1alpha1.SyncPhase
-	liveObj        *unstructured.Unstructured
-	targetObj      *unstructured.Unstructured
+	pkg.SyncTaskInfo
 	skipDryRun     bool
 	syncStatus     v1alpha1.ResultCode
 	operationState v1alpha1.OperationPhase
@@ -34,21 +34,21 @@ func ternary(val bool, a, b string) string {
 
 func (t *syncTask) String() string {
 	return fmt.Sprintf("%s/%d %s %s/%s:%s/%s %s->%s (%s,%s,%s)",
-		t.phase, t.wave(),
+		t.Phase, t.wave(),
 		ternary(t.isHook(), "hook", "resource"), t.group(), t.kind(), t.namespace(), t.name(),
-		ternary(t.liveObj != nil, "obj", "nil"), ternary(t.targetObj != nil, "obj", "nil"),
+		ternary(t.LiveObj != nil, "obj", "nil"), ternary(t.TargetObj != nil, "obj", "nil"),
 		t.syncStatus, t.operationState, t.message,
 	)
 }
 
 func (t *syncTask) isPrune() bool {
-	return t.targetObj == nil
+	return t.TargetObj == nil
 }
 
 // return the target object (if this exists) otherwise the live object
 // some caution - often you explicitly want the live object not the target object
 func (t *syncTask) obj() *unstructured.Unstructured {
-	return obj(t.targetObj, t.liveObj)
+	return obj(t.TargetObj, t.LiveObj)
 }
 
 func (t *syncTask) wave() int {
@@ -104,7 +104,7 @@ func (t *syncTask) failed() bool {
 
 func (t *syncTask) hookType() v1alpha1.HookType {
 	if t.isHook() {
-		return v1alpha1.HookType(t.phase)
+		return v1alpha1.HookType(t.Phase)
 	} else {
 		return ""
 	}
@@ -124,7 +124,7 @@ func (t *syncTask) hasHookDeletePolicy(policy v1alpha1.HookDeletePolicy) bool {
 }
 
 func (t *syncTask) needsDeleting() bool {
-	return t.liveObj != nil && (t.pending() && t.hasHookDeletePolicy(v1alpha1.HookDeletePolicyBeforeHookCreation) ||
+	return t.LiveObj != nil && (t.pending() && t.hasHookDeletePolicy(v1alpha1.HookDeletePolicyBeforeHookCreation) ||
 		t.successful() && t.hasHookDeletePolicy(v1alpha1.HookDeletePolicyHookSucceeded) ||
 		t.failed() && t.hasHookDeletePolicy(v1alpha1.HookDeletePolicyHookFailed))
 }

@@ -5,8 +5,10 @@ import (
 
 	"github.com/argoproj/argo-cd/engine/resource"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/watch"
 
+	"github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
 )
 
@@ -17,7 +19,15 @@ type Engine interface {
 	RefreshApps() error
 }
 
+type SyncTaskInfo struct {
+	Phase     v1alpha1.SyncPhase
+	LiveObj   *unstructured.Unstructured
+	TargetObj *unstructured.Unstructured
+	IsHook    bool
+}
+
 type Callbacks interface {
+	OnBeforeSync(appName string, tasks []SyncTaskInfo) ([]SyncTaskInfo, error)
 	OnSyncCompleted(appName string, state appv1.OperationState) error
 }
 
