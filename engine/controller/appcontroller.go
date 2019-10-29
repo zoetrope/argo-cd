@@ -13,8 +13,6 @@ import (
 
 	"github.com/argoproj/argo-cd/engine/util/settings"
 
-	"k8s.io/apimachinery/pkg/labels"
-
 	argocache "github.com/argoproj/argo-cd/engine/controller/cache"
 	"github.com/argoproj/argo-cd/engine/controller/metrics"
 
@@ -149,7 +147,7 @@ func NewApplicationController(
 	projInformer := v1alpha1.NewAppProjectInformer(applicationClientset, namespace, appResyncPeriod, cache.Indexers{})
 	metricsAddr := fmt.Sprintf("0.0.0.0:%d", metricsPort)
 	ctrl.metricsServer = metrics.NewMetricsServer(metricsAddr, appLister, healthCheck)
-	stateCache := argocache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, kubectl, ctrl.metricsServer, ctrl.handleObjectUpdated, luaVMFactory)
+	stateCache := argocache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, kubectl, ctrl.metricsServer, ctrl.handleObjectUpdated, luaVMFactory, callbacks)
 	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer, luaVMFactory, callbacks)
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister
@@ -421,17 +419,6 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	}
 
 	<-ctx.Done()
-}
-
-func (ctrl *ApplicationController) RefreshApps() error {
-	apps, err := ctrl.appLister.List(labels.Everything())
-	if err != nil {
-		return err
-	}
-	for i := range apps {
-		ctrl.requestAppRefresh(apps[i].Name, CompareWithLatest)
-	}
-	return nil
 }
 
 func (ctrl *ApplicationController) requestAppRefresh(appName string, compareWith CompareWith) {

@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strings"
 
+	argo2 "github.com/argoproj/argo-cd/engine/util/argo"
+
 	gogsclient "github.com/gogits/go-gogs-client"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/go-playground/webhooks.v5/bitbucket"
@@ -17,7 +19,6 @@ import (
 
 	"github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/engine/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -179,7 +180,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 		} else if targetRev != revision {
 			continue
 		}
-		_, err = argo.RefreshApp(appIf, app.ObjectMeta.Name, v1alpha1.RefreshTypeNormal)
+		_, err = argo2.RefreshApp(appIf, app.ObjectMeta.Name, v1alpha1.RefreshTypeNormal)
 		if err != nil {
 			log.Warnf("Failed to refresh app '%s' for controller reprocessing: %v", app.ObjectMeta.Name, err)
 			continue

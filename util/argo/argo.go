@@ -2,17 +2,13 @@ package argo
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/argoproj/argo-cd/engine/util/misc"
 
-	log "github.com/sirupsen/logrus"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 
 	"github.com/argoproj/argo-cd/engine/common"
@@ -47,35 +43,6 @@ func FilterByProjects(apps []argoappv1.Application, projects []string) []argoapp
 	}
 	return items
 
-}
-
-// RefreshApp updates the refresh annotation of an application to coerce the controller to process it
-func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType argoappv1.RefreshType) (*argoappv1.Application, error) {
-	metadata := map[string]interface{}{
-		"metadata": map[string]interface{}{
-			"annotations": map[string]string{
-				common.AnnotationKeyRefresh: string(refreshType),
-			},
-		},
-	}
-	var err error
-	patch, err := json.Marshal(metadata)
-	if err != nil {
-		return nil, err
-	}
-	for attempt := 0; attempt < 5; attempt++ {
-		app, err := appIf.Patch(name, types.MergePatchType, patch)
-		if err != nil {
-			if !apierr.IsConflict(err) {
-				return nil, err
-			}
-		} else {
-			log.Infof("Requested app '%s' refresh", name)
-			return app, nil
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-	return nil, err
 }
 
 // WaitForRefresh watches an application until its comparison timestamp is after the refresh timestamp

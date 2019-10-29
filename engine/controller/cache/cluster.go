@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/engine/controller/metrics"
+	"github.com/argoproj/argo-cd/engine/pkg"
 
 	"github.com/argoproj/argo-cd/engine/util/lua"
 
@@ -57,6 +58,7 @@ type clusterInfo struct {
 	log              *log.Entry
 	cacheSettingsSrc func() *cacheSettings
 	luaVMFactory     func(map[string]appv1.ResourceOverride) *lua.VM
+	callbacks        pkg.Callbacks
 }
 
 func (c *clusterInfo) replaceResourceCache(gk schema.GroupKind, resourceVersion string, objs []unstructured.Unstructured) {
@@ -329,6 +331,7 @@ func (c *clusterInfo) sync() (err error) {
 
 		lock.Lock()
 		for i := range list.Items {
+			c.callbacks.OnResourceUpdated(&list.Items[i])
 			c.setNode(c.createObjInfo(&list.Items[i], c.cacheSettingsSrc().AppInstanceLabelKey))
 		}
 		lock.Unlock()
@@ -356,6 +359,9 @@ func (c *clusterInfo) ensureSynced() error {
 	}
 
 	err := c.sync()
+	if err == nil {
+		c.callbacks.OnClusterInitialized(c.cluster.Server)
+	}
 	syncTime := time.Now()
 	c.syncTime = &syncTime
 	c.syncError = err
@@ -508,6 +514,7 @@ func (c *clusterInfo) onNodeUpdated(exists bool, existingNode *node, un *unstruc
 	}
 	newObj := c.createObjInfo(un, c.cacheSettingsSrc().AppInstanceLabelKey)
 	c.setNode(newObj)
+	c.callbacks.OnResourceUpdated(un)
 	nodes = append(nodes, newObj)
 	toNotify := make(map[string]bool)
 	for i := range nodes {
@@ -521,6 +528,7 @@ func (c *clusterInfo) onNodeUpdated(exists bool, existingNode *node, un *unstruc
 		}
 	}
 	c.onObjectUpdated(toNotify, newObj.ref)
+	c.callbacks.OnResourceUpdated(un)
 }
 
 func (c *clusterInfo) onNodeRemoved(key kube.ResourceKey, n *node) {

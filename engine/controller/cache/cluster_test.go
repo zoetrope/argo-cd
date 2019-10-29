@@ -7,6 +7,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/argoproj/argo-cd/engine/util/settings"
+
 	"github.com/argoproj/argo-cd/engine/util/lua"
 
 	"github.com/ghodss/yaml"
@@ -171,6 +173,7 @@ func newClusterExt(kubectl kube.Kubectl) *clusterInfo {
 		luaVMFactory: func(overrides map[string]appv1.ResourceOverride) *lua.VM {
 			return &lua.VM{ResourceOverrides: overrides}
 		},
+		callbacks: settings.NewNoOpCallbacks(),
 	}
 }
 

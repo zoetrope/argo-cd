@@ -252,7 +252,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 		if *q.Refresh == string(appv1.RefreshTypeHard) {
 			refreshType = appv1.RefreshTypeHard
 		}
-		_, err = argoutil.RefreshApp(appIf, *q.Name, refreshType)
+		_, err = engineargo.RefreshApp(appIf, *q.Name, refreshType)
 		if err != nil {
 			return nil, err
 		}

@@ -64,7 +64,8 @@ func NewLiveStateCache(
 	kubectl kube.Kubectl,
 	metricsServer *metrics.MetricsServer,
 	onObjectUpdated ObjectUpdatedHandler,
-	luaVMFactory func(map[string]appv1.ResourceOverride) *lua.VM) LiveStateCache {
+	luaVMFactory func(map[string]appv1.ResourceOverride) *lua.VM,
+	callbacks pkg.Callbacks) LiveStateCache {
 
 	return &liveStateCache{
 		appInformer:       appInformer,
@@ -77,6 +78,7 @@ func NewLiveStateCache(
 		metricsServer:     metricsServer,
 		cacheSettingsLock: &sync.Mutex{},
 		luaVMFactory:      luaVMFactory,
+		callbacks:         callbacks,
 	}
 }
 
@@ -92,6 +94,7 @@ type liveStateCache struct {
 	cacheSettingsLock *sync.Mutex
 	cacheSettings     *cacheSettings
 	luaVMFactory      func(map[string]appv1.ResourceOverride) *lua.VM
+	callbacks         pkg.Callbacks
 }
 
 func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
@@ -132,6 +135,7 @@ func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 			log:              log.WithField("server", cluster.Server),
 			cacheSettingsSrc: c.getCacheSettings,
 			luaVMFactory:     c.luaVMFactory,
+			callbacks:        c.callbacks,
 		}
 
 		c.clusters[cluster.Server] = info

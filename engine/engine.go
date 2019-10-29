@@ -13,7 +13,7 @@ import (
 )
 
 func NewEngine(
-	namespace string,
+	namespace string, // TODO: remove
 	settingsMgr pkg.ReconciliationSettings,
 	db pkg.CredentialsStore,
 	auditLogger pkg.AuditLogger,
@@ -24,8 +24,8 @@ func NewEngine(
 	selfHealTimeout time.Duration,
 	metricsPort int,
 	kubectlParallelismLimit int64,
-	healthCheck func() error,
-	luaVMFactory func(map[string]appv1.ResourceOverride) *lua.VM,
+	healthCheck func() error, // TODO: remove
+	luaVMFactory func(map[string]appv1.ResourceOverride) *lua.VM, // TODO: probably remove
 	callbacks pkg.Callbacks,
 ) (pkg.Engine, error) {
 	return controller.NewApplicationController(

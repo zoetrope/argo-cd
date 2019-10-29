@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine/util/argo"
+
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/watch"
 	testcore "k8s.io/client-go/testing"
@@ -21,7 +23,7 @@ func TestRefreshApp(t *testing.T) {
 	testApp.Namespace = "default"
 	appClientset := appclientset.NewSimpleClientset(&testApp)
 	appIf := appClientset.ArgoprojV1alpha1().Applications("default")
-	_, err := RefreshApp(appIf, "test-app", argoappv1.RefreshTypeNormal)
+	_, err := argo.RefreshApp(appIf, "test-app", argoappv1.RefreshTypeNormal)
 	assert.Nil(t, err)
 	// For some reason, the fake Application inferface doesn't reflect the patch status after Patch(),
 	// so can't verify it was set in unit tests.

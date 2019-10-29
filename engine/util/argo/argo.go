@@ -2,8 +2,12 @@ package argo
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
+
+	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-cd/engine/pkg"
 
@@ -152,4 +156,33 @@ func ContainsSyncResource(name string, gvk schema.GroupVersionKind, rr []v1alpha
 		}
 	}
 	return false
+}
+
+// RefreshApp updates the refresh annotation of an application to coerce the controller to process it
+func RefreshApp(appIf appclientset.ApplicationInterface, name string, refreshType v1alpha1.RefreshType) (*v1alpha1.Application, error) {
+	metadata := map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"annotations": map[string]string{
+				common.AnnotationKeyRefresh: string(refreshType),
+			},
+		},
+	}
+	var err error
+	patch, err := json.Marshal(metadata)
+	if err != nil {
+		return nil, err
+	}
+	for attempt := 0; attempt < 5; attempt++ {
+		app, err := appIf.Patch(name, types.MergePatchType, patch)
+		if err != nil {
+			if !errors.IsConflict(err) {
+				return nil, err
+			}
+		} else {
+			logrus.Infof("Requested app '%s' refresh", name)
+			return app, nil
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return nil, err
 }
