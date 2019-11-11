@@ -2,6 +2,29 @@
 [![codecov](https://codecov.io/gh/argoproj/argo-cd/branch/master/graph/badge.svg)](https://codecov.io/gh/argoproj/argo-cd)
 [![Release Version](https://img.shields.io/github/v/release/argoproj/argo-cd?label=argo-cd)](https://github.com/argoproj/argo-cd/releases/latest)
 
+# What is `gitops-engine-poc` branch?
+
+[Argo CD](https://github.com/argoproj/argo-cd) and [Flux CD](https://github.com/fluxcd/flux) are joining forces and
+[GitOps Engine](https://github.com/argoproj/gitops-engine) is the first step.
+The [gitops-engine-poc](https://github.com/argoproj/argo-cd/tree/release-1.1) is a PoC which demonstrates that
+proposed [design](https://github.com/argoproj/gitops-engine/blob/master/specs/design-top-down.md) is possible.
+
+As part of PoC the GitOps engine code was moved into [engine](https://github.com/argoproj/argo-cd/tree/gitops-engine-poc/engine)
+directory and used by both [Argo CD](https://github.com/argoproj/argo-cd) and [Flux CD](https://github.com/fluxcd/flux).
+
+The PoC image is available in docker hub: `argoproj/argocd:gitops-poc-3ac6673`. Give it a try:
+
+1. Install Argo CD using the command below.
+
+```bash
+kubectl create ns argocd
+curl https://raw.githubusercontent.com/argoproj/argo-cd/v1.3.0-rc1/manifests/install.yaml | \
+    sed -e 's/argoproj\/argocd.*/argoproj\/argocd:gitops-poc-3ac6673/g' | \
+    kubectl apply -n argocd -f -
+```
+
+2. Follow steps from the [getting started guide](https://argoproj.github.io/argo-cd/getting_started/).
+
 # Argo CD - Declarative Continuous Delivery for Kubernetes
 
 ## What is Argo CD?
