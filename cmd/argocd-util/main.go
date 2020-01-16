@@ -25,11 +25,11 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/errors"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/dex"
-	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/settings"
 
 	// load the gcp plugin (required to authenticate against GKE clusters).
