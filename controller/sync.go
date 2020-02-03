@@ -141,6 +141,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		sync.WithResourcesFilter(func(key kube.ResourceKey, target *unstructured.Unstructured, live *unstructured.Unstructured) bool {
 			return len(syncOp.Resources) == 0 || argo.ContainsSyncResource(key.Name, schema.GroupVersionKind{Kind: key.Kind, Group: key.Group}, syncOp.Resources)
 		}),
+		sync.WithManifestValidation(!syncOp.SyncOptions.HasOption("Validate=false")),
 	)
 
 	if err != nil {
