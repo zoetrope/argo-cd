@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -48,11 +49,10 @@ type Settings struct {
 	ResourcesFilter        kube.ResourceFilter
 }
 
-type EventHandlers struct {
-	OnEvent                func(event watch.EventType, un *unstructured.Unstructured)
-	OnPopulateResourceInfo func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool)
-	OnResourceUpdated      func(newRes *Resource, oldRes *Resource, namespaceResources map[kube.ResourceKey]*Resource)
-}
+type OnEventHandler func(event watch.EventType, un *unstructured.Unstructured)
+type OnPopulateResourceInfoHandler func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool)
+type OnResourceUpdatedHandler func(newRes *Resource, oldRes *Resource, namespaceResources map[kube.ResourceKey]*Resource)
+type Unsubscribe func()
 
 type ClusterCache interface {
 	EnsureSynced() error
@@ -63,20 +63,24 @@ type ClusterCache interface {
 	IsNamespaced(gk schema.GroupKind) bool
 	GetManagedLiveObjs(targetObjs []*unstructured.Unstructured, isManaged func(r *Resource) bool) (map[kube.ResourceKey]*unstructured.Unstructured, error)
 	GetClusterInfo() ClusterInfo
+	SetPopulateResourceInfoHandler(handler OnPopulateResourceInfoHandler)
+	OnResourceUpdated(handler OnResourceUpdatedHandler) Unsubscribe
+	OnEvent(handler OnEventHandler) Unsubscribe
 }
 
-func NewClusterCache(settings Settings, config *rest.Config, namespaces []string, kubectl kube.Kubectl, handlers EventHandlers) *clusterCache {
+func NewClusterCache(settings Settings, config *rest.Config, namespaces []string, kubectl kube.Kubectl) *clusterCache {
 	return &clusterCache{
-		settings:   settings,
-		apisMeta:   make(map[schema.GroupKind]*apiMeta),
-		resources:  make(map[kube.ResourceKey]*Resource),
-		nsIndex:    make(map[string]map[kube.ResourceKey]*Resource),
-		config:     config,
-		namespaces: namespaces,
-		kubectl:    kubectl,
-		syncTime:   nil,
-		log:        log.WithField("server", config.Host),
-		handlers:   handlers,
+		settings:                settings,
+		apisMeta:                make(map[schema.GroupKind]*apiMeta),
+		resources:               make(map[kube.ResourceKey]*Resource),
+		nsIndex:                 make(map[string]map[kube.ResourceKey]*Resource),
+		config:                  config,
+		namespaces:              namespaces,
+		kubectl:                 kubectl,
+		syncTime:                nil,
+		resourceUpdatedHandlers: map[uint64]OnResourceUpdatedHandler{},
+		eventHandlers:           map[uint64]OnEventHandler{},
+		log:                     log.WithField("server", config.Host),
 	}
 }
 
@@ -85,7 +89,6 @@ type clusterCache struct {
 	syncError     error
 	apisMeta      map[schema.GroupKind]*apiMeta
 	serverVersion string
-	handlers      EventHandlers
 
 	lock      sync.Mutex
 	resources map[kube.ResourceKey]*Resource
@@ -96,6 +99,42 @@ type clusterCache struct {
 	config     *rest.Config
 	namespaces []string
 	settings   Settings
+
+	populateResourceInfoHandler OnPopulateResourceInfoHandler
+	resourceUpdatedHandlers     map[uint64]OnResourceUpdatedHandler
+	eventHandlers               map[uint64]OnEventHandler
+}
+
+func (c *clusterCache) SetPopulateResourceInfoHandler(handler OnPopulateResourceInfoHandler) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.populateResourceInfoHandler = handler
+}
+
+func (c *clusterCache) OnResourceUpdated(handler OnResourceUpdatedHandler) Unsubscribe {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	key := atomic.AddUint64(&handlerKey, 1)
+	c.resourceUpdatedHandlers[key] = handler
+	return func() {
+		c.lock.Lock()
+		defer c.lock.Unlock()
+		delete(c.resourceUpdatedHandlers, key)
+	}
+}
+
+var handlerKey uint64
+
+func (c *clusterCache) OnEvent(handler OnEventHandler) Unsubscribe {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	key := atomic.AddUint64(&handlerKey, 1)
+	c.eventHandlers[key] = handler
+	return func() {
+		c.lock.Lock()
+		defer c.lock.Unlock()
+		delete(c.eventHandlers, key)
+	}
 }
 
 func (c *clusterCache) GetServerVersion() string {
@@ -175,8 +214,8 @@ func (c *clusterCache) newResource(un *unstructured.Unstructured) *Resource {
 
 	cacheManifest := false
 	var info interface{}
-	if c.handlers.OnPopulateResourceInfo != nil {
-		info, cacheManifest = c.handlers.OnPopulateResourceInfo(un, len(ownerRefs) == 0)
+	if c.populateResourceInfoHandler != nil {
+		info, cacheManifest = c.populateResourceInfoHandler(un, len(ownerRefs) == 0)
 	}
 	resource := &Resource{
 		ResourceVersion: un.GetResourceVersion(),
@@ -560,9 +599,10 @@ func (c *clusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructure
 }
 
 func (c *clusterCache) processEvent(event watch.EventType, un *unstructured.Unstructured) {
-	if c.handlers.OnEvent != nil {
-		c.handlers.OnEvent(event, un)
+	for _, h := range c.eventHandlers {
+		h(event, un)
 	}
+
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	key := kube.GetResourceKey(un)
@@ -579,8 +619,8 @@ func (c *clusterCache) processEvent(event watch.EventType, un *unstructured.Unst
 func (c *clusterCache) onNodeUpdated(oldRes *Resource, un *unstructured.Unstructured) {
 	newRes := c.newResource(un)
 	c.setNode(newRes)
-	if c.handlers.OnResourceUpdated != nil {
-		c.handlers.OnResourceUpdated(newRes, oldRes, c.nsIndex[newRes.Ref.Namespace])
+	for _, h := range c.resourceUpdatedHandlers {
+		h(newRes, oldRes, c.nsIndex[newRes.Ref.Namespace])
 	}
 }
 
@@ -595,8 +635,8 @@ func (c *clusterCache) onNodeRemoved(key kube.ResourceKey) {
 				delete(c.nsIndex, key.Namespace)
 			}
 		}
-		if c.handlers.OnResourceUpdated != nil {
-			c.handlers.OnResourceUpdated(nil, existing, ns)
+		for _, h := range c.resourceUpdatedHandlers {
+			h(nil, existing, ns)
 		}
 	}
 }

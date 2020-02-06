@@ -9,6 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/cache"
 
@@ -32,6 +33,13 @@ import (
 	argohealth "github.com/argoproj/argo-cd/util/health"
 	"github.com/argoproj/argo-cd/util/settings"
 )
+
+type resourceInfoProviderStub struct {
+}
+
+func (r *resourceInfoProviderStub) IsNamespaced(_ schema.GroupKind) bool {
+	return false
+}
 
 type managedResource struct {
 	Target    *unstructured.Unstructured
@@ -157,7 +165,6 @@ func unmarshalManifests(manifests []string) ([]*unstructured.Unstructured, error
 }
 
 func DeduplicateTargetObjects(
-	server string,
 	namespace string,
 	objs []*unstructured.Unstructured,
 	infoProvider kubeutil.ResourceInfoProvider,
@@ -166,10 +173,7 @@ func DeduplicateTargetObjects(
 	targetByKey := make(map[kubeutil.ResourceKey][]*unstructured.Unstructured)
 	for i := range objs {
 		obj := objs[i]
-		isNamespaced, err := infoProvider.IsNamespaced(server, obj.GroupVersionKind().GroupKind())
-		if err != nil {
-			return objs, nil, err
-		}
+		isNamespaced := infoProvider.IsNamespaced(obj.GroupVersionKind().GroupKind())
 		if !isNamespaced {
 			obj.SetNamespace("")
 		} else if obj.GetNamespace() == "" {
@@ -256,7 +260,12 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		manifestInfo = nil
 	}
 
-	targetObjs, dedupConditions, err := DeduplicateTargetObjects(app.Spec.Destination.Server, app.Spec.Destination.Namespace, targetObjs, m.liveStateCache)
+	var infoProvider kubeutil.ResourceInfoProvider
+	infoProvider, err = m.liveStateCache.GetClusterCache(app.Spec.Destination.Server)
+	if err != nil {
+		infoProvider = &resourceInfoProviderStub{}
+	}
+	targetObjs, dedupConditions, err := DeduplicateTargetObjects(app.Spec.Destination.Namespace, targetObjs, infoProvider)
 	if err != nil {
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
 	}
@@ -309,7 +318,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		}
 	}
 
-	reconciliation := sync.Reconcile(targetObjs, liveObjByKey, app.Spec.Destination.Server, app.Spec.Destination.Namespace, m.liveStateCache)
+	reconciliation := sync.Reconcile(targetObjs, liveObjByKey, app.Spec.Destination.Namespace, infoProvider)
 
 	logCtx.Debugf("built managed objects list")
 	// Do the actual comparison
