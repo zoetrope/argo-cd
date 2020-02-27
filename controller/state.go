@@ -37,8 +37,8 @@ import (
 type resourceInfoProviderStub struct {
 }
 
-func (r *resourceInfoProviderStub) IsNamespaced(_ schema.GroupKind) bool {
-	return false
+func (r *resourceInfoProviderStub) IsNamespaced(_ schema.GroupKind) (bool, error) {
+	return false, nil
 }
 
 type managedResource struct {
@@ -173,7 +173,7 @@ func DeduplicateTargetObjects(
 	targetByKey := make(map[kubeutil.ResourceKey][]*unstructured.Unstructured)
 	for i := range objs {
 		obj := objs[i]
-		isNamespaced := infoProvider.IsNamespaced(obj.GroupVersionKind().GroupKind())
+		isNamespaced := kubeutil.IsNamespacedOrUnknown(infoProvider, obj.GroupVersionKind().GroupKind())
 		if !isNamespaced {
 			obj.SetNamespace("")
 		} else if obj.GetNamespace() == "" {
