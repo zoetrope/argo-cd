@@ -1603,6 +1603,10 @@ type AppProjectSpec struct {
 	OrphanedResources *OrphanedResourcesMonitorSettings `json:"orphanedResources,omitempty" protobuf:"bytes,7,opt,name=orphanedResources"`
 	// SyncWindows controls when syncs can be run for apps in this project
 	SyncWindows SyncWindows `json:"syncWindows,omitempty" protobuf:"bytes,8,opt,name=syncWindows"`
+	// ImpersonateUser is the impersonation username to be used to deploy applications
+	ImpersonateUser string `json:"impersonateUser,omitempty" protobuf:"bytes,9,opt,name=impersonateUser"`
+	// ImpersonateGroups are the impersonation groups to be used to deploy applications
+	ImpersonateGroups []string `json:"impersonateGroups,omitempty" protobuf:"bytes,10,rep,name=impersonateGroups"`
 }
 
 // SyncWindows is a collection of sync windows in this project

@@ -132,6 +132,11 @@ func (in *AppProjectSpec) DeepCopyInto(out *AppProjectSpec) {
 			}
 		}
 	}
+	if in.ImpersonateGroups != nil {
+		in, out := &in.ImpersonateGroups, &out.ImpersonateGroups
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

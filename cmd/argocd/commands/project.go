@@ -36,6 +36,8 @@ type projectOpts struct {
 	sources                  []string
 	orphanedResourcesEnabled bool
 	orphanedResourcesWarn    bool
+	impersonateUser          string
+	impersonateGroups        []string
 }
 
 type policyOpts struct {
@@ -96,6 +98,8 @@ func addProjFlags(command *cobra.Command, opts *projectOpts) {
 	command.Flags().StringArrayVarP(&opts.sources, "src", "s", []string{}, "Permitted source repository URL")
 	command.Flags().BoolVar(&opts.orphanedResourcesEnabled, "orphaned-resources", false, "Enables orphaned resources monitoring")
 	command.Flags().BoolVar(&opts.orphanedResourcesWarn, "orphaned-resources-warn", false, "Specifies if applications should be a warning condition when orphaned resources detected")
+	command.Flags().StringVarP(&opts.impersonateUser, "impersonate-user", "", "", "User name to be used to deploy applications")
+	command.Flags().StringArrayVarP(&opts.impersonateGroups, "impersonate-groups", "", []string{}, "Groups to be used to deploy applications")
 }
 
 func getOrphanedResourcesSettings(c *cobra.Command, opts projectOpts) *v1alpha1.OrphanedResourcesMonitorSettings {
@@ -166,6 +170,8 @@ func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 						Destinations:      opts.GetDestinations(),
 						SourceRepos:       opts.sources,
 						OrphanedResources: getOrphanedResourcesSettings(c, opts),
+						ImpersonateUser:   opts.impersonateUser,
+						ImpersonateGroups: opts.impersonateGroups,
 					},
 				}
 			}
@@ -217,6 +223,10 @@ func NewProjectSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 					proj.Spec.SourceRepos = opts.sources
 				case "orphaned-resources", "orphaned-resources-warn":
 					proj.Spec.OrphanedResources = getOrphanedResourcesSettings(c, opts)
+				case "impersonate-user":
+					proj.Spec.ImpersonateUser = opts.impersonateUser
+				case "impersonate-groups":
+					proj.Spec.ImpersonateGroups = opts.impersonateGroups
 				}
 			})
 			if visited == 0 {
@@ -507,7 +517,7 @@ func printProjectNames(projects []v1alpha1.AppProject) {
 // Print table of project info
 func printProjectTable(projects []v1alpha1.AppProject) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "NAME\tDESCRIPTION\tDESTINATIONS\tSOURCES\tCLUSTER-RESOURCE-WHITELIST\tNAMESPACE-RESOURCE-BLACKLIST\tORPHANED-RESOURCES\n")
+	fmt.Fprintf(w, "NAME\tDESCRIPTION\tDESTINATIONS\tSOURCES\tCLUSTER-RESOURCE-WHITELIST\tNAMESPACE-RESOURCE-BLACKLIST\tORPHANED-RESOURCES\tIMPERSONATE USER\tIMPERSONATE GROUPS\n")
 	for _, p := range projects {
 		printProjectLine(w, &p)
 	}
@@ -552,7 +562,7 @@ func formatOrphanedResources(p *v1alpha1.AppProject) string {
 }
 
 func printProjectLine(w io.Writer, p *v1alpha1.AppProject) {
-	var destinations, sourceRepos, clusterWhitelist, namespaceBlacklist string
+	var destinations, sourceRepos, clusterWhitelist, namespaceBlacklist, impersonateGroups string
 	switch len(p.Spec.Destinations) {
 	case 0:
 		destinations = "<none>"
@@ -583,7 +593,14 @@ func printProjectLine(w io.Writer, p *v1alpha1.AppProject) {
 	default:
 		namespaceBlacklist = fmt.Sprintf("%d resources", len(p.Spec.NamespaceResourceBlacklist))
 	}
-	fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%v\t%v\t%v\n", p.Name, p.Spec.Description, destinations, sourceRepos, clusterWhitelist, namespaceBlacklist, formatOrphanedResources(p))
+	switch len(p.Spec.ImpersonateGroups) {
+	case 0:
+		impersonateGroups = "<none>"
+	default:
+		impersonateGroups = fmt.Sprintf("%d groups", len(p.Spec.ImpersonateGroups))
+	}
+	fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%v\t%v\t%v\t%s\t%v\n",
+		p.Name, p.Spec.Description, destinations, sourceRepos, clusterWhitelist, namespaceBlacklist, formatOrphanedResources(p), p.Spec.ImpersonateUser, impersonateGroups)
 }
 
 func printProject(p *v1alpha1.AppProject) {
@@ -633,6 +650,16 @@ func printProject(p *v1alpha1.AppProject) {
 	}
 	fmt.Printf(printProjFmtStr, "Orphaned Resources:", formatOrphanedResources(p))
 
+	// Print impersonate
+	fmt.Printf(printProjFmtStr, "Impersonate User:", p.Spec.ImpersonateUser)
+	groups := "<none>"
+	if len(p.Spec.ImpersonateGroups) > 0 {
+		groups = p.Spec.ImpersonateGroups[0]
+	}
+	fmt.Printf(printProjFmtStr, "Impersonate Groups:", groups)
+	for i := 1; i < len(p.Spec.ImpersonateGroups); i++ {
+		fmt.Printf(printProjFmtStr, "", p.Spec.ImpersonateGroups[i])
+	}
 }
 
 // NewProjectGetCommand returns a new instance of an `argocd proj get` command

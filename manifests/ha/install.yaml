@@ -1746,6 +1746,16 @@ spec:
                     type: string
                 type: object
               type: array
+            impersonateGroups:
+              description: ImpersonateGroups are the impersonation groups to be used
+                to deploy applications
+              items:
+                type: string
+              type: array
+            impersonateUser:
+              description: ImpersonateUser is the impersonation username to be used
+                to deploy applications
+              type: string
             namespaceResourceBlacklist:
               description: NamespaceResourceBlacklist contains list of blacklisted
                 namespace level resources
@@ -2827,7 +2837,7 @@ spec:
         - "10"
         - --redis
         - argocd-redis-ha-haproxy:6379
-        image: argoproj/argocd:v1.5.0
+        image: argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -2882,7 +2892,7 @@ spec:
         - -n
         - /usr/local/bin/argocd-util
         - /shared
-        image: argoproj/argocd:v1.5.0
+        image: argoproj/argocd:latest
         imagePullPolicy: Always
         name: copyutil
         volumeMounts:
@@ -2932,7 +2942,7 @@ spec:
         - argocd-repo-server
         - --redis
         - argocd-redis-ha-haproxy:6379
-        image: argoproj/argocd:v1.5.0
+        image: argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
           initialDelaySeconds: 5
@@ -3000,7 +3010,7 @@ spec:
         - /shared/app
         - --redis
         - argocd-redis-ha-haproxy:6379
-        image: argoproj/argocd:v1.5.0
+        image: argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
           httpGet:

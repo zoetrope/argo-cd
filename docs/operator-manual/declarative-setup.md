@@ -100,6 +100,11 @@ spec:
     kind: LimitRange
   - group: ''
     kind: NetworkPolicy
+  # Use my-serviceaccount in guestbook namespace to deploy applications
+  impersonateUser: system:serviceaccount:guestbook:my-serviceaccount
+  # Use system:authenticated group to deploy applications
+  impersonateGroups:
+  - system:authenticated
   roles:
   # A role which provides read-only access to all applications in the project
   - name: read-only

@@ -71,6 +71,12 @@ message AppProjectSpec {
 
   // SyncWindows controls when syncs can be run for apps in this project
   repeated SyncWindow syncWindows = 8;
+
+  // ImpersonateUser is the impersonation username to be used to deploy applications
+  optional string impersonateUser = 9;
+
+  // ImpersonateGroups are the impersonation groups to be used to deploy applications
+  repeated string impersonateGroups = 10;
 }
 
 // Application is a definition of Application resource.
